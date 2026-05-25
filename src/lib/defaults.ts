@@ -1,4 +1,4 @@
-import type { ProjectPhase, Priority, Resource, Project } from '@/types'
+import type { ProjectPhase, Priority, Resource, Project, ProjectTask } from '@/types'
 
 export const TEAMS = ['DEV E-SHOP', 'Business IT', 'DEV POS', 'Content', 'CX', 'Online marketing', 'Business', 'Kuchyně']
 export const PHASES: ProjectPhase[] = ['Idea', 'Čeká na schválení', 'Zařazeno', 'Rozpracováno', 'Zastaveno', 'Hotovo Q1', 'Hotovo Q2', 'Hotovo Q3', 'Hotovo Q4']
@@ -28,4 +28,32 @@ export const DEMO_PROJECTS: Project[] = [
   { id: 'p8', name: 'Online marketing automatizace', team: 'Online marketing', assignees: ['Rohan'], phase: 'Idea', type: 'Vylepšení', statusOverall: 'N/A', statusScope: 'N/A', statusTime: 'N/A', statusBudget: 'N/A', priority: 'Low', plannedStartWeek: 30, plannedDuration: 10, percentComplete: 0, sortOrder: 7, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
   { id: 'p9', name: 'Helpdesk ticketing systém', team: 'Business IT', assignees: ['Martin'], phase: 'Hotovo Q1', type: 'Projekt', statusOverall: 'Green', statusScope: 'Green', statusTime: 'Green', statusBudget: 'Green', priority: 'High', plannedStartWeek: 1, plannedDuration: 10, percentComplete: 1, sortOrder: 8, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
   { id: 'p10', name: 'SK expanze - nový sklad', team: 'Business', assignees: ['Poschl', 'David'], phase: 'Čeká na schválení', type: 'Projekt', statusOverall: 'Amber', statusScope: 'Green', statusTime: 'Amber', statusBudget: 'Red', priority: 'Highest', plannedStartWeek: 25, plannedDuration: 20, percentComplete: 0, sortOrder: 9, createdAt: new Date().toISOString(), updatedAt: new Date().toISOString() },
+]
+
+export const DEMO_TASKS: ProjectTask[] = [
+  // FE 2.0 (p1, starts week 2, 50 weeks) - Ondřej
+  { id: 't1', projectId: 'p1', name: 'Zadání', assignees: ['Ondřej'], plannedStartWeek: 2, plannedDuration: 3, percentComplete: 1, sortOrder: 0 },
+  { id: 't2', projectId: 'p1', name: 'Analýza', assignees: ['Ondřej'], plannedStartWeek: 5, plannedDuration: 4, percentComplete: 0.8, sortOrder: 1 },
+  { id: 't3', projectId: 'p1', name: 'Vývoj', assignees: ['Ondřej', 'Rohan'], plannedStartWeek: 9, plannedDuration: 30, percentComplete: 0.3, sortOrder: 2 },
+  { id: 't4', projectId: 'p1', name: 'Test', assignees: ['Ondřej'], plannedStartWeek: 39, plannedDuration: 8, percentComplete: 0, sortOrder: 3 },
+  { id: 't5', projectId: 'p1', name: 'Release', assignees: ['Ondřej'], plannedStartWeek: 47, plannedDuration: 5, percentComplete: 0, sortOrder: 4 },
+
+  // Integrační můstek (p3, starts week 10, 17 weeks) - Ondřej, Martin
+  { id: 't6', projectId: 'p3', name: 'Zadání', assignees: ['Ondřej', 'Martin'], plannedStartWeek: 10, plannedDuration: 2, percentComplete: 1, sortOrder: 0 },
+  { id: 't7', projectId: 'p3', name: 'Analýza', assignees: ['Martin'], plannedStartWeek: 12, plannedDuration: 3, percentComplete: 0.9, sortOrder: 1 },
+  { id: 't8', projectId: 'p3', name: 'Vývoj', assignees: ['Ondřej', 'Martin'], plannedStartWeek: 15, plannedDuration: 8, percentComplete: 0.5, sortOrder: 2 },
+  { id: 't9', projectId: 'p3', name: 'Test', assignees: ['Martin'], plannedStartWeek: 23, plannedDuration: 3, percentComplete: 0, sortOrder: 3 },
+  { id: 't10', projectId: 'p3', name: 'Release', assignees: ['Ondřej'], plannedStartWeek: 26, plannedDuration: 1, percentComplete: 0, sortOrder: 4 },
+
+  // Luigi's Box (p4, starts week 5, 22 weeks) - Ondřej
+  { id: 't11', projectId: 'p4', name: 'Zadání', assignees: ['Ondřej'], plannedStartWeek: 5, plannedDuration: 2, percentComplete: 1, sortOrder: 0 },
+  { id: 't12', projectId: 'p4', name: 'Vývoj', assignees: ['Ondřej', 'Košťál'], plannedStartWeek: 7, plannedDuration: 15, percentComplete: 0.7, sortOrder: 1 },
+  { id: 't13', projectId: 'p4', name: 'Test', assignees: ['Ondřej'], plannedStartWeek: 22, plannedDuration: 4, percentComplete: 0.2, sortOrder: 2 },
+  { id: 't14', projectId: 'p4', name: 'Release', assignees: ['Ondřej'], plannedStartWeek: 26, plannedDuration: 1, percentComplete: 0, sortOrder: 3 },
+
+  // Nový modul kuchyně (p5, starts week 2, 30 weeks) - Ondřej, Košťál
+  { id: 't15', projectId: 'p5', name: 'Analýza', assignees: ['Ondřej'], plannedStartWeek: 2, plannedDuration: 4, percentComplete: 1, sortOrder: 0 },
+  { id: 't16', projectId: 'p5', name: 'Vývoj', assignees: ['Košťál', 'Ondřej'], plannedStartWeek: 6, plannedDuration: 20, percentComplete: 0.4, sortOrder: 1 },
+  { id: 't17', projectId: 'p5', name: 'Test', assignees: ['Košťál'], plannedStartWeek: 26, plannedDuration: 5, percentComplete: 0, sortOrder: 2 },
+  { id: 't18', projectId: 'p5', name: 'Release', assignees: ['Ondřej', 'Košťál'], plannedStartWeek: 31, plannedDuration: 1, percentComplete: 0, sortOrder: 3 },
 ]

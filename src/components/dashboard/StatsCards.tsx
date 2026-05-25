@@ -1,6 +1,5 @@
 'use client'
 import { useProjectStore } from '@/stores/projectStore'
-import { useResourceStore } from '@/stores/resourceStore'
 import { countConflicts } from '@/lib/capacity'
 
 interface StatCardProps {
@@ -33,14 +32,14 @@ function StatCard({ label, value, color = '#e8eaf6', bg = '#1a1d27' }: StatCardP
 
 export function StatsCards() {
   const projects = useProjectStore((s) => s.projects)
-  const resources = useResourceStore((s) => s.resources)
+  const tasks = useProjectStore((s) => s.tasks)
 
   const q1 = projects.filter((p) => p.phase === 'Hotovo Q1').length
   const q2 = projects.filter((p) => p.phase === 'Hotovo Q2').length
   const q3 = projects.filter((p) => p.phase === 'Hotovo Q3').length
   const q4 = projects.filter((p) => p.phase === 'Hotovo Q4').length
   const active = projects.filter((p) => p.phase === 'Rozpracováno').length
-  const conflicts = countConflicts(projects, resources)
+  const conflicts = countConflicts(projects, tasks)
 
   const green = projects.filter((p) => p.statusOverall === 'Green').length
   const amber = projects.filter((p) => p.statusOverall === 'Amber').length

@@ -1,32 +1,52 @@
 'use client'
 import { useState, useEffect, useCallback } from 'react'
-import type { Project } from '@/types'
+import type { Project, ProjectTask } from '@/types'
 import { useProjectStore } from '@/stores/projectStore'
+import { useUIStore } from '@/stores/uiStore'
 
 type DragType = 'move' | 'resize-left' | 'resize-right'
 
+export type DragTarget =
+  | { type: 'project'; id: string }
+  | { type: 'task'; id: string }
+
 interface DragState {
-  projectId: string
-  type: DragType
+  target: DragTarget
+  dragType: DragType
   startX: number
   originalStart: number
   originalDuration: number
+  // live preview
+  previewStart: number
+  previewDuration: number
 }
 
 export function useGanttDrag(zoomLevel: number) {
   const [dragState, setDragState] = useState<DragState | null>(null)
   const updateProject = useProjectStore((s) => s.updateProject)
+  const updateTask = useProjectStore((s) => s.updateTask)
+  const projects = useProjectStore((s) => s.projects)
+  const tasks = useProjectStore((s) => s.tasks)
+  const rebuildConflictMap = useUIStore((s) => s.rebuildConflictMap)
+  const setSaveStatus = useUIStore((s) => s.setSaveStatus)
 
   const handleMouseDown = useCallback(
-    (e: React.MouseEvent, project: Project, type: DragType) => {
+    (
+      e: React.MouseEvent,
+      item: Project | ProjectTask,
+      dragType: DragType,
+      target: DragTarget
+    ) => {
       e.preventDefault()
       e.stopPropagation()
       setDragState({
-        projectId: project.id,
-        type,
+        target,
+        dragType,
         startX: e.clientX,
-        originalStart: project.plannedStartWeek,
-        originalDuration: project.plannedDuration,
+        originalStart: item.plannedStartWeek,
+        originalDuration: item.plannedDuration,
+        previewStart: item.plannedStartWeek,
+        previewDuration: item.plannedDuration,
       })
     },
     []
@@ -39,29 +59,41 @@ export function useGanttDrag(zoomLevel: number) {
       const dx = e.clientX - dragState.startX
       const weekDelta = Math.round(dx / zoomLevel)
 
-      if (dragState.type === 'move') {
-        const newStart = Math.max(1, dragState.originalStart + weekDelta)
-        updateProject(dragState.projectId, { plannedStartWeek: newStart })
-      } else if (dragState.type === 'resize-left') {
-        const newStart = Math.max(1, dragState.originalStart + weekDelta)
-        const originalEnd =
-          dragState.originalStart + dragState.originalDuration - 1
-        const newDuration = Math.max(1, originalEnd - newStart + 1)
-        updateProject(dragState.projectId, {
+      let newStart = dragState.originalStart
+      let newDuration = dragState.originalDuration
+
+      if (dragState.dragType === 'move') {
+        newStart = Math.max(1, dragState.originalStart + weekDelta)
+      } else if (dragState.dragType === 'resize-left') {
+        newStart = Math.max(1, dragState.originalStart + weekDelta)
+        const originalEnd = dragState.originalStart + dragState.originalDuration - 1
+        newDuration = Math.max(1, originalEnd - newStart + 1)
+      } else if (dragState.dragType === 'resize-right') {
+        newDuration = Math.max(1, dragState.originalDuration + weekDelta)
+      }
+
+      setDragState((prev) =>
+        prev ? { ...prev, previewStart: newStart, previewDuration: newDuration } : prev
+      )
+
+      if (dragState.target.type === 'project') {
+        updateProject(dragState.target.id, {
           plannedStartWeek: newStart,
           plannedDuration: newDuration,
         })
-      } else if (dragState.type === 'resize-right') {
-        const newDuration = Math.max(
-          1,
-          dragState.originalDuration + weekDelta
-        )
-        updateProject(dragState.projectId, { plannedDuration: newDuration })
+      } else {
+        updateTask(dragState.target.id, {
+          plannedStartWeek: newStart,
+          plannedDuration: newDuration,
+        })
       }
     }
 
     const handleMouseUp = () => {
       setDragState(null)
+      // Rebuild conflicts after drag completes
+      rebuildConflictMap(projects, tasks)
+      setSaveStatus('saved')
     }
 
     window.addEventListener('mousemove', handleMouseMove)
@@ -70,7 +102,7 @@ export function useGanttDrag(zoomLevel: number) {
       window.removeEventListener('mousemove', handleMouseMove)
       window.removeEventListener('mouseup', handleMouseUp)
     }
-  }, [dragState, zoomLevel, updateProject])
+  }, [dragState, zoomLevel, updateProject, updateTask, rebuildConflictMap, projects, tasks, setSaveStatus])
 
   return { dragState, handleMouseDown }
 }

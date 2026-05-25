@@ -1,5 +1,5 @@
 'use client'
-import { forwardRef, useRef } from 'react'
+import { forwardRef } from 'react'
 import { useProjectStore } from '@/stores/projectStore'
 import { useUIStore } from '@/stores/uiStore'
 import { GanttTimeline } from './GanttTimeline'
@@ -21,10 +21,32 @@ const GanttChart = forwardRef<HTMLDivElement, GanttChartProps>(
   ({ onScrollLeft }, ref) => {
     const getFilteredProjects = useProjectStore((s) => s.getFilteredProjects)
     const projects = getFilteredProjects()
+    const getTasksForProject = useProjectStore((s) => s.getTasksForProject)
+    const isExpanded = useProjectStore((s) => s.isExpanded)
     const zoomLevel = useUIStore((s) => s.zoomLevel)
+    const slotConflicts = useUIStore((s) => s.slotConflicts)
     const totalWeeks = getWeeksInYear(CURRENT_YEAR)
     const totalWidth = totalWeeks * zoomLevel
-    const bodyHeight = Math.max(projects.length * ROW_HEIGHT + 48, 200)
+
+    // Build all rows in order: project row, then (if expanded) task rows
+    const rows: Array<
+      | { kind: 'project'; projectId: string; rowIndex: number }
+      | { kind: 'task'; taskId: string; projectId: string; rowIndex: number }
+    > = []
+    let rowIndex = 0
+    for (const project of projects) {
+      rows.push({ kind: 'project', projectId: project.id, rowIndex })
+      rowIndex++
+      if (isExpanded(project.id)) {
+        const tasks = getTasksForProject(project.id)
+        for (const task of tasks) {
+          rows.push({ kind: 'task', taskId: task.id, projectId: project.id, rowIndex })
+          rowIndex++
+        }
+      }
+    }
+
+    const bodyHeight = Math.max(rows.length * ROW_HEIGHT + 48, 200)
 
     return (
       <div
@@ -69,20 +91,77 @@ const GanttChart = forwardRef<HTMLDivElement, GanttChartProps>(
               <GanttTodayLine zoomLevel={zoomLevel} totalHeight={bodyHeight} />
 
               {/* Bars */}
-              {projects.map((project, idx) => (
-                <div
-                  key={project.id}
-                  style={{
-                    position: 'absolute',
-                    top: `${idx * ROW_HEIGHT}px`,
-                    left: 0,
-                    width: '100%',
-                    height: `${ROW_HEIGHT}px`,
-                  }}
-                >
-                  <GanttBar project={project} zoomLevel={zoomLevel} />
-                </div>
-              ))}
+              {rows.map((row) => {
+                if (row.kind === 'project') {
+                  const project = projects.find((p) => p.id === row.projectId)
+                  if (!project) return null
+                  const tasks = getTasksForProject(project.id)
+                  const hasTasks = tasks.length > 0
+                  const expanded = isExpanded(project.id)
+                  // For summary bar: compute min start and max end from tasks
+                  let summaryProject = project
+                  if (hasTasks && expanded) {
+                    const minStart = Math.min(...tasks.map((t) => t.plannedStartWeek))
+                    const maxEnd = Math.max(
+                      ...tasks.map((t) => t.plannedStartWeek + t.plannedDuration - 1)
+                    )
+                    summaryProject = {
+                      ...project,
+                      plannedStartWeek: minStart,
+                      plannedDuration: maxEnd - minStart + 1,
+                    }
+                  }
+                  const hasConflict = slotConflicts.has(`project-${project.id}`)
+                  return (
+                    <div
+                      key={`project-${project.id}`}
+                      style={{
+                        position: 'absolute',
+                        top: `${row.rowIndex * ROW_HEIGHT}px`,
+                        left: 0,
+                        width: '100%',
+                        height: `${ROW_HEIGHT}px`,
+                      }}
+                    >
+                      <GanttBar
+                        mode="project"
+                        project={summaryProject}
+                        zoomLevel={zoomLevel}
+                        hasConflict={hasConflict}
+                        isSummary={hasTasks && expanded}
+                      />
+                    </div>
+                  )
+                } else {
+                  // task row
+                  const project = projects.find((p) => p.id === row.projectId)
+                  const tasks = project ? getTasksForProject(project.id) : []
+                  const task = tasks.find((t) => t.id === row.taskId)
+                  if (!task || !project) return null
+                  const hasConflict = slotConflicts.has(`task-${task.id}`)
+                  return (
+                    <div
+                      key={`task-${task.id}`}
+                      style={{
+                        position: 'absolute',
+                        top: `${row.rowIndex * ROW_HEIGHT}px`,
+                        left: 0,
+                        width: '100%',
+                        height: `${ROW_HEIGHT}px`,
+                        borderLeft: '2px solid rgba(59,130,246,0.3)',
+                      }}
+                    >
+                      <GanttBar
+                        mode="task"
+                        task={task}
+                        projectName={project.name}
+                        zoomLevel={zoomLevel}
+                        hasConflict={hasConflict}
+                      />
+                    </div>
+                  )
+                }
+              })}
             </div>
           </div>
         </div>
@@ -93,4 +172,4 @@ const GanttChart = forwardRef<HTMLDivElement, GanttChartProps>(
 
 GanttChart.displayName = 'GanttChart'
 
-export { GanttChart, ROW_HEIGHT }
+export { GanttChart, ROW_HEIGHT, HEADER_HEIGHT }

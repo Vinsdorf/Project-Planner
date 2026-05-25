@@ -68,3 +68,15 @@ export interface PortfolioSettings {
   teams: string[]
   themes: string[]
 }
+
+export interface ProjectTask {
+  id: string
+  projectId: string
+  name: string
+  assignees: string[]
+  plannedStartWeek: number
+  plannedDuration: number
+  percentComplete: number
+  sortOrder: number
+  color?: string
+}

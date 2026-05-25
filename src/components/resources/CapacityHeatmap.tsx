@@ -13,6 +13,7 @@ const LABEL_W = 100
 
 export function CapacityHeatmap() {
   const projects = useProjectStore((s) => s.projects)
+  const tasks = useProjectStore((s) => s.tasks)
   const resources = useResourceStore((s) => s.resources)
   const zoomLevel = useUIStore((s) => s.zoomLevel)
   const [tooltip, setTooltip] = useState<{
@@ -22,7 +23,7 @@ export function CapacityHeatmap() {
   } | null>(null)
 
   const activeResources = resources.filter((r) => r.isActive)
-  const conflicts = calculateConflicts(projects, activeResources)
+  const { heatmapData } = calculateConflicts(projects, tasks)
   const totalWeeks = getWeeksInYear(CURRENT_YEAR)
   const cellWidth = Math.max(CELL_W, zoomLevel / 2)
 
@@ -53,7 +54,7 @@ export function CapacityHeatmap() {
 
         {/* Resource rows */}
         {activeResources.map((resource) => {
-          const weekMap = conflicts.get(resource.name) ?? new Map()
+          const weekMap = heatmapData.get(resource.name) ?? new Map()
 
           return (
             <div

@@ -10,16 +10,16 @@ interface ConflictDialogProps {
 
 export function ConflictDialog({ open, onClose }: ConflictDialogProps) {
   const projects = useProjectStore((s) => s.projects)
-  const resources = useResourceStore((s) => s.resources)
+  const tasks = useProjectStore((s) => s.tasks)
 
   if (!open) return null
 
-  const conflicts = calculateConflicts(projects, resources)
+  const { heatmapData } = calculateConflicts(projects, tasks)
   const conflictEntries: Array<{ resource: string; week: number; projects: string[] }> = []
 
-  for (const [resourceName, weekMap] of conflicts.entries()) {
+  for (const [resourceName, weekMap] of heatmapData.entries()) {
     for (const [week, projectNames] of weekMap.entries()) {
-      if (projectNames.length >= 3) {
+      if (projectNames.length >= 2) {
         conflictEntries.push({ resource: resourceName, week, projects: projectNames })
       }
     }
