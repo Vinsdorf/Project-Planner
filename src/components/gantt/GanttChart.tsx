@@ -10,8 +10,8 @@ import { GanttZoomControls } from './GanttZoomControls'
 import { getWeeksInYear } from '@/lib/weekUtils'
 import { CURRENT_YEAR } from '@/lib/defaults'
 
-const ROW_HEIGHT = 40
-const HEADER_HEIGHT = 36 // matches TaskTable header
+const ROW_HEIGHT = 36  // matches ExcelTable ROW_H
+const HEADER_HEIGHT = 32 // matches ExcelTable header
 
 interface GanttChartProps {
   onScrollLeft?: (x: number) => void

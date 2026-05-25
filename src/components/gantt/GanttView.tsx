@@ -2,18 +2,15 @@
 import { useRef, useCallback, useEffect } from 'react'
 import { useUIStore } from '@/stores/uiStore'
 import { useProjectStore } from '@/stores/projectStore'
-import { TaskTable } from './TaskTable'
+import { ExcelTable } from './ExcelTable'
 import { GanttChart } from './GanttChart'
 import { FilterBar } from '@/components/shared/FilterBar'
 import { ProjectDetailPanel } from '@/components/project-detail/ProjectDetailPanel'
-import { TEAMS } from '@/lib/defaults'
-import type { Project } from '@/types'
 
 export function GanttView() {
   const splitterWidth = useUIStore((s) => s.splitterWidth)
   const setSplitterWidth = useUIStore((s) => s.setSplitterWidth)
   const detailPanelOpen = useUIStore((s) => s.detailPanelOpen)
-  const addProject = useProjectStore((s) => s.addProject)
   const projects = useProjectStore((s) => s.projects)
   const tasks = useProjectStore((s) => s.tasks)
   const rebuildConflictMap = useUIStore((s) => s.rebuildConflictMap)
@@ -72,26 +69,6 @@ export function GanttView() {
     }
   }
 
-  const handleAddProject = () => {
-    const newProject: Omit<Project, 'id' | 'createdAt' | 'updatedAt'> = {
-      name: 'Nový projekt',
-      type: 'Projekt',
-      team: TEAMS[0],
-      assignees: [],
-      phase: 'Idea',
-      statusOverall: 'N/A',
-      statusScope: 'N/A',
-      statusTime: 'N/A',
-      statusBudget: 'N/A',
-      priority: 'Medium',
-      plannedStartWeek: 1,
-      plannedDuration: 4,
-      percentComplete: 0,
-      sortOrder: 999,
-    }
-    addProject(newProject)
-  }
-
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
       <FilterBar />
@@ -109,11 +86,10 @@ export function GanttView() {
           }}
         >
           <div
-            ref={tableRef}
             style={{ flex: 1, overflow: 'auto' }}
             onScroll={handleTableScroll}
           >
-            <TaskTable onAddProject={handleAddProject} />
+            <ExcelTable tableRef={tableRef} />
           </div>
         </div>
 
