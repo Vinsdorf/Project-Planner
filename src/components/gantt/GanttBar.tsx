@@ -44,12 +44,14 @@ export function GanttBar(props: GanttBarProps) {
     const actual = getActualBarStyle(project, zoomLevel)
     const done = isDone(project.phase)
 
-    const barBg = isSummary
-      ? 'rgba(99,102,241,0.2)'
-      : done
-        ? '#374151'
-        : 'rgba(59,130,246,0.35)'
-    const progressBg = done ? '#6b7280' : '#22c55e'
+    const barBg = hasConflict
+      ? 'rgba(239,68,68,0.25)'
+      : isSummary
+        ? 'rgba(99,102,241,0.2)'
+        : done
+          ? '#374151'
+          : 'rgba(59,130,246,0.3)'
+    const progressBg = hasConflict ? '#ef4444' : done ? '#6b7280' : '#22c55e'
     const borderColor = hasConflict
       ? '#ef4444'
       : isSummary
@@ -71,7 +73,8 @@ export function GanttBar(props: GanttBarProps) {
             width: `${Math.max(planned.width, 4)}px`,
             background: barBg,
             border: `${borderWidth} solid ${borderColor}`,
-            boxShadow: hasConflict ? '0 0 6px rgba(239, 68, 68, 0.5)' : undefined,
+            boxShadow: hasConflict ? '0 0 10px rgba(239,68,68,0.6), inset 0 0 12px rgba(239,68,68,0.1)' : undefined,
+            transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s',
             userSelect: 'none',
           }}
           onMouseEnter={() => setTooltip(true)}
@@ -270,7 +273,7 @@ export function GanttBar(props: GanttBarProps) {
   const { task, projectName, zoomLevel, hasConflict } = props
   const left = (task.plannedStartWeek - 1) * zoomLevel
   const width = task.plannedDuration * zoomLevel
-  const phaseColor = PHASE_COLORS[task.name] ?? '#6b7280'
+  const phaseColor = hasConflict ? '#ef4444' : (PHASE_COLORS[task.name] ?? '#6b7280')
   const tooltipText = `${projectName} – ${task.name} | Týden ${task.plannedStartWeek} → ${
     task.plannedStartWeek + task.plannedDuration - 1
   } | ${task.plannedDuration} týdnů | ${Math.round(task.percentComplete * 100)}%`
@@ -282,9 +285,10 @@ export function GanttBar(props: GanttBarProps) {
         style={{
           left: `${left}px`,
           width: `${Math.max(width, 4)}px`,
-          background: `${phaseColor}33`,
+          background: hasConflict ? 'rgba(239,68,68,0.22)' : `${phaseColor}33`,
           border: `${hasConflict ? '2px' : '1px'} solid ${hasConflict ? '#ef4444' : phaseColor}`,
-          boxShadow: hasConflict ? '0 0 6px rgba(239, 68, 68, 0.5)' : undefined,
+          boxShadow: hasConflict ? '0 0 10px rgba(239,68,68,0.55), inset 0 0 8px rgba(239,68,68,0.1)' : undefined,
+          transition: 'background 0.2s, border-color 0.2s, box-shadow 0.2s',
           userSelect: 'none',
           height: '26px',
           top: '7px',

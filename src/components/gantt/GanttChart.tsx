@@ -98,9 +98,9 @@ const GanttChart = forwardRef<HTMLDivElement, GanttChartProps>(
                   const tasks = getTasksForProject(project.id)
                   const hasTasks = tasks.length > 0
                   const expanded = isExpanded(project.id)
-                  // For summary bar: compute min start and max end from tasks
+                  // Project bar always spans all its tasks automatically
                   let summaryProject = project
-                  if (hasTasks && expanded) {
+                  if (hasTasks) {
                     const minStart = Math.min(...tasks.map((t) => t.plannedStartWeek))
                     const maxEnd = Math.max(
                       ...tasks.map((t) => t.plannedStartWeek + t.plannedDuration - 1)
@@ -111,7 +111,10 @@ const GanttChart = forwardRef<HTMLDivElement, GanttChartProps>(
                       plannedDuration: maxEnd - minStart + 1,
                     }
                   }
-                  const hasConflict = slotConflicts.has(`project-${project.id}`)
+                  // Conflict = any task of this project has a conflict
+                  const projectHasConflict = hasTasks
+                    ? tasks.some((t) => slotConflicts.has(`task-${t.id}`))
+                    : slotConflicts.has(`project-${project.id}`)
                   return (
                     <div
                       key={`project-${project.id}`}
@@ -127,8 +130,8 @@ const GanttChart = forwardRef<HTMLDivElement, GanttChartProps>(
                         mode="project"
                         project={summaryProject}
                         zoomLevel={zoomLevel}
-                        hasConflict={hasConflict}
-                        isSummary={hasTasks && expanded}
+                        hasConflict={projectHasConflict}
+                        isSummary={hasTasks}
                       />
                     </div>
                   )
