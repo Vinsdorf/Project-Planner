@@ -3,7 +3,8 @@ import { useState, useRef, useEffect, useCallback } from 'react'
 import { useProjectStore } from '@/stores/projectStore'
 import { useUIStore } from '@/stores/uiStore'
 import { useResourceStore } from '@/stores/resourceStore'
-import type { Project, ProjectTask } from '@/types'
+import { TrafficLightDots } from './TrafficLightDots'
+import type { Project, ProjectTask, TrafficLight } from '@/types'
 import { TEAMS } from '@/lib/defaults'
 
 export const ROW_H = 36
@@ -141,115 +142,151 @@ function Cell({ value, onCommit, onTabOut, onEnterOut, type = 'text', options, p
   )
 }
 
-// ─── assignee tag-input ───────────────────────────────────────────────────
-// Click → text input appears. Type a name + Enter or comma to add.
-// Suggestions from resources. Click chip × to remove.
-function AssigneeCell({ assignees, allNames, onChange }: {
-  assignees: string[]
-  allNames: string[]
-  onChange: (a: string[]) => void
+// ─── single-select owner dropdown (for projects) ──────────────────────────
+function OwnerDropdown({ value, options, onChange }: {
+  value: string        // single name or ''
+  options: string[]
+  onChange: (name: string) => void
 }) {
-  const [editing, setEditing] = useState(false)
-  const [draft, setDraft] = useState('')
-  const inputRef = useRef<HTMLInputElement>(null)
+  const [open, setOpen] = useState(false)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (editing) inputRef.current?.focus()
-  }, [editing])
-
-  useEffect(() => {
-    if (!editing) return
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setEditing(false) }
+    if (!open) return
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
-  }, [editing])
+  }, [open])
 
-  const addName = (name: string) => {
-    const trimmed = name.trim()
-    if (trimmed && !assignees.includes(trimmed)) onChange([...assignees, trimmed])
-    setDraft('')
-  }
-
-  const removeName = (name: string) => onChange(assignees.filter((a) => a !== name))
-
-  const suggestions = allNames.filter(
-    (n) => !assignees.includes(n) && n.toLowerCase().includes(draft.toLowerCase())
-  )
-
-  if (editing) {
-    return (
-      <div ref={ref} style={{ position: 'relative', width: '100%' }}>
-        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', alignItems: 'center', minHeight: '24px' }}>
-          {assignees.map((a) => (
-            <span key={a} style={{
-              background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.4)',
-              borderRadius: '3px', padding: '1px 4px', fontSize: '10px', color: '#93c5fd',
-              display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap',
-            }}>
-              {a}
-              <span onMouseDown={() => removeName(a)} style={{ cursor: 'pointer', color: '#6b7280', lineHeight: 1 }}>×</span>
-            </span>
-          ))}
-          <input
-            ref={inputRef}
-            value={draft}
-            onChange={(e) => setDraft(e.target.value)}
-            onKeyDown={(e) => {
-              if ((e.key === 'Enter' || e.key === ',') && draft.trim()) { e.preventDefault(); addName(draft) }
-              if (e.key === 'Backspace' && !draft && assignees.length) removeName(assignees[assignees.length - 1])
-              if (e.key === 'Escape') setEditing(false)
-            }}
-            placeholder={assignees.length === 0 ? 'Přidat jméno…' : '+'}
-            style={{
-              background: 'transparent', border: 'none', outline: 'none',
-              color: '#e8eaf6', fontSize: '11px', minWidth: '60px', flex: 1,
-            }}
-          />
-        </div>
-        {/* suggestions dropdown */}
-        {suggestions.length > 0 && (
+  return (
+    <div ref={ref} style={{ position: 'relative', width: '100%' }}>
+      <div
+        onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
+        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}
+      >
+        {value
+          ? <span style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: '3px', padding: '1px 6px', fontSize: '11px', color: '#a5b4fc', whiteSpace: 'nowrap' }}>{value}</span>
+          : <span style={{ color: '#3a3d4a', fontSize: '11px' }}>—</span>
+        }
+        <span style={{ color: '#4b5563', fontSize: '8px', flexShrink: 0 }}>▾</span>
+      </div>
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
           <div style={{
-            position: 'absolute', top: '100%', left: 0, zIndex: 100,
+            position: 'absolute', top: 'calc(100% + 2px)', left: 0, zIndex: 50,
             background: '#1a1d27', border: '1px solid #2a2d37', borderRadius: '6px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.5)', minWidth: '130px', maxHeight: '180px', overflowY: 'auto',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)', minWidth: '140px', maxHeight: '220px', overflowY: 'auto',
           }}>
-            {suggestions.map((name) => (
+            {/* clear option */}
+            <div
+              onMouseDown={() => { onChange(''); setOpen(false) }}
+              style={{ padding: '6px 12px', fontSize: '11px', color: '#6b7280', cursor: 'pointer', borderBottom: '1px solid #252836' }}
+              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)' }}
+              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+            >— žádný vlastník</div>
+            {options.map((name) => (
               <div
                 key={name}
-                onMouseDown={() => addName(name)}
-                style={{ padding: '6px 12px', fontSize: '12px', color: '#e8eaf6', cursor: 'pointer' }}
-                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(59,130,246,0.15)' }}
-                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+                onMouseDown={() => { onChange(name); setOpen(false) }}
+                style={{
+                  padding: '7px 12px', fontSize: '12px', cursor: 'pointer',
+                  color: name === value ? '#a5b4fc' : '#e8eaf6',
+                  background: name === value ? 'rgba(99,102,241,0.12)' : 'transparent',
+                  display: 'flex', alignItems: 'center', gap: '6px',
+                }}
+                onMouseEnter={(e) => { if (name !== value) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.05)' }}
+                onMouseLeave={(e) => { if (name !== value) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
               >
+                {name === value && <span style={{ fontSize: '9px' }}>✓</span>}
                 {name}
               </div>
             ))}
           </div>
-        )}
-      </div>
-    )
-  }
-
-  return (
-    <div
-      ref={ref}
-      onClick={() => setEditing(true)}
-      style={{ cursor: 'text', width: '100%', display: 'flex', alignItems: 'center', gap: '3px', overflow: 'hidden' }}
-    >
-      {assignees.length === 0
-        ? <span style={{ color: '#3a3d4a' }}>—</span>
-        : assignees.slice(0, 2).map((a) => (
-            <span key={a} style={{
-              background: 'rgba(59,130,246,0.15)', borderRadius: '3px',
-              padding: '1px 5px', fontSize: '10px', color: '#93c5fd', whiteSpace: 'nowrap',
-            }}>{a}</span>
-          ))
-      }
-      {assignees.length > 2 && <span style={{ color: '#6b7280', fontSize: '10px' }}>+{assignees.length - 2}</span>}
+        </>
+      )}
     </div>
   )
+}
 
+// ─── multi-select assignee dropdown (for tasks) ───────────────────────────
+function AssigneeDropdown({ assignees, options, onChange }: {
+  assignees: string[]
+  options: string[]
+  onChange: (a: string[]) => void
+}) {
+  const [open, setOpen] = useState(false)
+  const ref = useRef<HTMLDivElement>(null)
+
+  useEffect(() => {
+    if (!open) return
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    document.addEventListener('mousedown', h)
+    return () => document.removeEventListener('mousedown', h)
+  }, [open])
+
+  const toggle = (name: string) =>
+    onChange(assignees.includes(name) ? assignees.filter((a) => a !== name) : [...assignees, name])
+
+  return (
+    <div ref={ref} style={{ position: 'relative', width: '100%' }}>
+      <div
+        onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
+        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', overflow: 'hidden' }}
+      >
+        {assignees.length === 0
+          ? <span style={{ color: '#3a3d4a', fontSize: '11px' }}>—</span>
+          : <>
+              {assignees.slice(0, 2).map((a) => (
+                <span key={a} style={{ background: 'rgba(59,130,246,0.18)', border: '1px solid rgba(59,130,246,0.35)', borderRadius: '3px', padding: '1px 5px', fontSize: '10px', color: '#93c5fd', whiteSpace: 'nowrap' }}>{a}</span>
+              ))}
+              {assignees.length > 2 && <span style={{ color: '#6b7280', fontSize: '10px' }}>+{assignees.length - 2}</span>}
+            </>
+        }
+        <span style={{ color: '#4b5563', fontSize: '8px', flexShrink: 0, marginLeft: 'auto' }}>▾</span>
+      </div>
+      {open && (
+        <>
+          <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
+          <div style={{
+            position: 'absolute', top: 'calc(100% + 2px)', left: 0, zIndex: 50,
+            background: '#1a1d27', border: '1px solid #2a2d37', borderRadius: '6px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)', minWidth: '150px', maxHeight: '220px', overflowY: 'auto',
+          }}>
+            {options.length === 0
+              ? <div style={{ padding: '10px 12px', fontSize: '11px', color: '#4b5563' }}>Žádní řešitelé — přidejte je ve Zdrojích</div>
+              : options.map((name) => {
+                  const sel = assignees.includes(name)
+                  return (
+                    <div
+                      key={name}
+                      onMouseDown={() => toggle(name)}
+                      style={{
+                        display: 'flex', alignItems: 'center', gap: '8px',
+                        padding: '7px 12px', fontSize: '12px', cursor: 'pointer',
+                        color: sel ? '#93c5fd' : '#e8eaf6',
+                        background: sel ? 'rgba(59,130,246,0.1)' : 'transparent',
+                      }}
+                      onMouseEnter={(e) => { if (!sel) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.05)' }}
+                      onMouseLeave={(e) => { if (!sel) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+                    >
+                      <span style={{
+                        width: '13px', height: '13px', borderRadius: '3px', flexShrink: 0,
+                        border: `1px solid ${sel ? '#3b82f6' : '#4b5563'}`,
+                        background: sel ? '#3b82f6' : 'transparent',
+                        display: 'flex', alignItems: 'center', justifyContent: 'center',
+                        fontSize: '9px', color: 'white',
+                      }}>{sel ? '✓' : ''}</span>
+                      {name}
+                    </div>
+                  )
+                })
+            }
+          </div>
+        </>
+      )}
+    </div>
+  )
 }
 
 // ─── context menu ──────────────────────────────────────────────────────────
@@ -324,7 +361,7 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
   }, [getTasksForProject, addTask, isExpanded, toggleExpanded])
 
   // column widths
-  const COL = { expand: 28, name: 240, assignee: 150, start: 58, dur: 58, end: 58, pct: 48, actions: 32 }
+  const COL = { expand: 28, name: 210, owner: 130, assignee: 150, status: 80, start: 58, dur: 58, end: 58, pct: 48, actions: 32 }
   const totalW = Object.values(COL).reduce((a, b) => a + b, 0)
 
   const headerCell: React.CSSProperties = {
@@ -350,7 +387,9 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
       }}>
         <div style={{ ...headerCell, width: COL.expand }} />
         <div style={{ ...headerCell, width: COL.name }}>NÁZEV</div>
-        <div style={{ ...headerCell, width: COL.assignee }}>ŘEŠITEL</div>
+        <div style={{ ...headerCell, width: COL.owner }}>VLASTNÍK</div>
+        <div style={{ ...headerCell, width: COL.assignee }}>ŘEŠITELÉ</div>
+        <div style={{ ...headerCell, width: COL.status, justifyContent: 'center' }}>STATUS</div>
         <div style={{ ...headerCell, width: COL.start, justifyContent: 'center' }}>ZAČÁTEK</div>
         <div style={{ ...headerCell, width: COL.dur, justifyContent: 'center' }}>DÉLKA</div>
         <div style={{ ...headerCell, width: COL.end, justifyContent: 'center' }}>KONEC</div>
@@ -368,7 +407,9 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
 
           // derived values
           const name = isProject ? row.project.name : row.task.name
-          const assignees = isProject ? row.project.assignees : row.task.assignees
+          // project: assignees[0] = business owner; tasks: assignees = multi
+          const ownerName = isProject ? (row.project.assignees[0] ?? '') : ''
+          const taskAssignees = !isProject ? row.task.assignees : []
           const startWeek = isProject ? row.project.plannedStartWeek : row.task.plannedStartWeek
           const duration = isProject ? row.project.plannedDuration : row.task.plannedDuration
           const endWeek = startWeek + duration - 1
@@ -389,9 +430,11 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
             ? updateProject(row.project.id, { name: v })
             : updateTask(row.task.id, { name: v })
 
-          const updateAssignees = (a: string[]) => isProject
-            ? updateProject(row.project.id, { assignees: a })
-            : updateTask(row.task.id, { assignees: a })
+          const updateOwner = (name: string) =>
+            updateProject((row as { project: Project }).project.id, { assignees: name ? [name] : [] })
+
+          const updateTaskAssignees = (a: string[]) =>
+            updateTask((row as { task: ProjectTask }).task.id, { assignees: a })
 
           const updateStart = (v: string) => {
             const w = parseWeek(v)
@@ -466,9 +509,33 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
                   />
                 </div>
 
-                {/* ŘEŠITEL */}
+                {/* VLASTNÍK — single select, projects only */}
+                <div style={{ ...cell, width: COL.owner }}>
+                  {isProject
+                    ? <OwnerDropdown value={ownerName} options={allNames} onChange={updateOwner} />
+                    : <span style={{ color: '#252840', fontSize: '11px', paddingLeft: '4px' }}>—</span>
+                  }
+                </div>
+
+                {/* ŘEŠITELÉ — multi-select, tasks only */}
                 <div style={{ ...cell, width: COL.assignee }}>
-                  <AssigneeCell assignees={assignees} allNames={allNames} onChange={updateAssignees} />
+                  {!isProject
+                    ? <AssigneeDropdown assignees={taskAssignees} options={allNames} onChange={updateTaskAssignees} />
+                    : <span style={{ color: '#252840', fontSize: '11px', paddingLeft: '4px' }}>—</span>
+                  }
+                </div>
+
+                {/* STATUS — traffic lights, projects only */}
+                <div style={{ ...cell, width: COL.status, justifyContent: 'center' }}>
+                  {isProject ? (
+                    <TrafficLightDots
+                      overall={row.project.statusOverall}
+                      scope={row.project.statusScope}
+                      time={row.project.statusTime}
+                      budget={row.project.statusBudget}
+                      onChange={(field, val) => updateProject(row.project.id, { [field]: val as TrafficLight })}
+                    />
+                  ) : null}
                 </div>
 
                 {/* ZAČÁTEK */}
