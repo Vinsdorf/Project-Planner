@@ -141,69 +141,115 @@ function Cell({ value, onCommit, onTabOut, onEnterOut, type = 'text', options, p
   )
 }
 
-// ─── assignee multi-select ─────────────────────────────────────────────────
+// ─── assignee tag-input ───────────────────────────────────────────────────
+// Click → text input appears. Type a name + Enter or comma to add.
+// Suggestions from resources. Click chip × to remove.
 function AssigneeCell({ assignees, allNames, onChange }: {
   assignees: string[]
   allNames: string[]
   onChange: (a: string[]) => void
 }) {
-  const [open, setOpen] = useState(false)
+  const [editing, setEditing] = useState(false)
+  const [draft, setDraft] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
   const ref = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
-    if (!open) return
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    if (editing) inputRef.current?.focus()
+  }, [editing])
+
+  useEffect(() => {
+    if (!editing) return
+    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setEditing(false) }
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
-  }, [open])
+  }, [editing])
 
-  const toggle = (name: string) =>
-    onChange(assignees.includes(name) ? assignees.filter((a) => a !== name) : [...assignees, name])
+  const addName = (name: string) => {
+    const trimmed = name.trim()
+    if (trimmed && !assignees.includes(trimmed)) onChange([...assignees, trimmed])
+    setDraft('')
+  }
 
-  const display = assignees.length === 0
-    ? <span style={{ color: '#3a3d4a' }}>—</span>
-    : <span style={{ color: '#93c5fd' }}>{assignees.length <= 2 ? assignees.join(', ') : `${assignees[0]} +${assignees.length - 1}`}</span>
+  const removeName = (name: string) => onChange(assignees.filter((a) => a !== name))
+
+  const suggestions = allNames.filter(
+    (n) => !assignees.includes(n) && n.toLowerCase().includes(draft.toLowerCase())
+  )
+
+  if (editing) {
+    return (
+      <div ref={ref} style={{ position: 'relative', width: '100%' }}>
+        <div style={{ display: 'flex', flexWrap: 'wrap', gap: '3px', alignItems: 'center', minHeight: '24px' }}>
+          {assignees.map((a) => (
+            <span key={a} style={{
+              background: 'rgba(59,130,246,0.2)', border: '1px solid rgba(59,130,246,0.4)',
+              borderRadius: '3px', padding: '1px 4px', fontSize: '10px', color: '#93c5fd',
+              display: 'flex', alignItems: 'center', gap: '3px', whiteSpace: 'nowrap',
+            }}>
+              {a}
+              <span onMouseDown={() => removeName(a)} style={{ cursor: 'pointer', color: '#6b7280', lineHeight: 1 }}>×</span>
+            </span>
+          ))}
+          <input
+            ref={inputRef}
+            value={draft}
+            onChange={(e) => setDraft(e.target.value)}
+            onKeyDown={(e) => {
+              if ((e.key === 'Enter' || e.key === ',') && draft.trim()) { e.preventDefault(); addName(draft) }
+              if (e.key === 'Backspace' && !draft && assignees.length) removeName(assignees[assignees.length - 1])
+              if (e.key === 'Escape') setEditing(false)
+            }}
+            placeholder={assignees.length === 0 ? 'Přidat jméno…' : '+'}
+            style={{
+              background: 'transparent', border: 'none', outline: 'none',
+              color: '#e8eaf6', fontSize: '11px', minWidth: '60px', flex: 1,
+            }}
+          />
+        </div>
+        {/* suggestions dropdown */}
+        {suggestions.length > 0 && (
+          <div style={{
+            position: 'absolute', top: '100%', left: 0, zIndex: 100,
+            background: '#1a1d27', border: '1px solid #2a2d37', borderRadius: '6px',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.5)', minWidth: '130px', maxHeight: '180px', overflowY: 'auto',
+          }}>
+            {suggestions.map((name) => (
+              <div
+                key={name}
+                onMouseDown={() => addName(name)}
+                style={{ padding: '6px 12px', fontSize: '12px', color: '#e8eaf6', cursor: 'pointer' }}
+                onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(59,130,246,0.15)' }}
+                onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+              >
+                {name}
+              </div>
+            ))}
+          </div>
+        )}
+      </div>
+    )
+  }
 
   return (
-    <div ref={ref} style={{ position: 'relative', width: '100%' }}>
-      <div onClick={() => setOpen(!open)} style={{ cursor: 'pointer', overflow: 'hidden', textOverflow: 'ellipsis', whiteSpace: 'nowrap' }}>
-        {display}
-      </div>
-      {open && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
-          <div style={{
-            position: 'absolute', top: '100%', left: 0, zIndex: 50,
-            background: '#1a1d27', border: '1px solid #2a2d37',
-            borderRadius: '6px', boxShadow: '0 8px 24px rgba(0,0,0,0.5)',
-            minWidth: '140px', maxHeight: '220px', overflowY: 'auto',
-          }}>
-            {allNames.map((name) => {
-              const sel = assignees.includes(name)
-              return (
-                <button key={name} onClick={() => toggle(name)} style={{
-                  display: 'flex', alignItems: 'center', gap: '7px',
-                  width: '100%', padding: '6px 12px',
-                  background: sel ? 'rgba(59,130,246,0.1)' : 'transparent',
-                  border: 'none', cursor: 'pointer', color: sel ? '#93c5fd' : '#e8eaf6',
-                  fontSize: '12px', textAlign: 'left',
-                }}>
-                  <span style={{
-                    width: '12px', height: '12px', borderRadius: '2px', flexShrink: 0,
-                    border: `1px solid ${sel ? '#3b82f6' : '#4b5563'}`,
-                    background: sel ? '#3b82f6' : 'transparent',
-                    display: 'flex', alignItems: 'center', justifyContent: 'center',
-                    fontSize: '8px', color: 'white',
-                  }}>{sel ? '✓' : ''}</span>
-                  {name}
-                </button>
-              )
-            })}
-          </div>
-        </>
-      )}
+    <div
+      ref={ref}
+      onClick={() => setEditing(true)}
+      style={{ cursor: 'text', width: '100%', display: 'flex', alignItems: 'center', gap: '3px', overflow: 'hidden' }}
+    >
+      {assignees.length === 0
+        ? <span style={{ color: '#3a3d4a' }}>—</span>
+        : assignees.slice(0, 2).map((a) => (
+            <span key={a} style={{
+              background: 'rgba(59,130,246,0.15)', borderRadius: '3px',
+              padding: '1px 5px', fontSize: '10px', color: '#93c5fd', whiteSpace: 'nowrap',
+            }}>{a}</span>
+          ))
+      }
+      {assignees.length > 2 && <span style={{ color: '#6b7280', fontSize: '10px' }}>+{assignees.length - 2}</span>}
     </div>
   )
+
 }
 
 // ─── context menu ──────────────────────────────────────────────────────────
