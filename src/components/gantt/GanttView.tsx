@@ -1,20 +1,27 @@
 'use client'
-import { useRef, useState, useCallback } from 'react'
+import { useRef, useCallback, useEffect } from 'react'
 import { useUIStore } from '@/stores/uiStore'
 import { useProjectStore } from '@/stores/projectStore'
 import { TaskTable } from './TaskTable'
 import { GanttChart } from './GanttChart'
 import { FilterBar } from '@/components/shared/FilterBar'
 import { ProjectDetailPanel } from '@/components/project-detail/ProjectDetailPanel'
-import { TEAMS, PHASES } from '@/lib/defaults'
+import { TEAMS } from '@/lib/defaults'
 import type { Project } from '@/types'
 
 export function GanttView() {
   const splitterWidth = useUIStore((s) => s.splitterWidth)
   const setSplitterWidth = useUIStore((s) => s.setSplitterWidth)
   const detailPanelOpen = useUIStore((s) => s.detailPanelOpen)
-  const setNewProjectDialogOpen = useUIStore((s) => s.setNewProjectDialogOpen)
   const addProject = useProjectStore((s) => s.addProject)
+  const projects = useProjectStore((s) => s.projects)
+  const tasks = useProjectStore((s) => s.tasks)
+  const rebuildConflictMap = useUIStore((s) => s.rebuildConflictMap)
+
+  // Reactively rebuild conflict map whenever projects or tasks change
+  useEffect(() => {
+    rebuildConflictMap(projects, tasks)
+  }, [projects, tasks, rebuildConflictMap])
 
   const tableRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<HTMLDivElement>(null)

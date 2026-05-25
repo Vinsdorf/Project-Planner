@@ -94,7 +94,7 @@ export function CapacityHeatmap() {
                 const projectsInWeek = weekMap.get(w) ?? []
                 const count = projectsInWeek.length
                 const bg = getHeatmapColor(count)
-                const isConflict = count >= 3
+                const isConflict = count >= 2
 
                 return (
                   <div
@@ -159,9 +159,9 @@ export function CapacityHeatmap() {
       {/* Legend */}
       <div style={{ display: 'flex', gap: '16px', marginTop: '12px', fontSize: '11px', color: '#6b7280' }}>
         {[
-          { color: 'transparent', label: '0 projektů', border: '1px solid #2a2d37' },
-          { color: 'rgba(34,197,94,0.6)', label: '1 projekt', border: 'none' },
-          { color: 'rgba(234,179,8,0.7)', label: '2 projekty', border: 'none' },
+          { color: 'transparent', label: '0 úkolů', border: '1px solid #2a2d37' },
+          { color: 'rgba(34,197,94,0.6)', label: '1 úkol', border: 'none' },
+          { color: 'rgba(234,179,8,0.7)', label: '2 úkoly', border: 'none' },
           { color: 'rgba(239,68,68,0.8)', label: '3+ konflikt', border: 'none' },
         ].map((item) => (
           <div key={item.label} style={{ display: 'flex', alignItems: 'center', gap: '4px' }}>

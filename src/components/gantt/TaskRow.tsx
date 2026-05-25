@@ -17,13 +17,17 @@ const PRIORITY_COLORS: Record<string, string> = {
 interface TaskRowProps {
   project: Project
   height: number
+  hasTasks?: boolean
 }
 
-export function TaskRow({ project, height }: TaskRowProps) {
+export function TaskRow({ project, height, hasTasks = false }: TaskRowProps) {
   const updateProject = useProjectStore((s) => s.updateProject)
   const setSelectedProject = useUIStore((s) => s.setSelectedProject)
   const selectedId = useUIStore((s) => s.selectedProjectId)
   const isSelected = selectedId === project.id
+  const isExpanded = useProjectStore((s) => s.isExpanded)
+  const toggleExpanded = useProjectStore((s) => s.toggleExpanded)
+  const expanded = isExpanded(project.id)
 
   const cellStyle: React.CSSProperties = {
     padding: '0 8px',
@@ -47,8 +51,8 @@ export function TaskRow({ project, height }: TaskRowProps) {
     project.assignees.length === 0
       ? '—'
       : project.assignees.length <= 2
-      ? project.assignees.join(', ')
-      : `${project.assignees[0]}, ${project.assignees[1]} +${project.assignees.length - 2}`
+        ? project.assignees.join(', ')
+        : `${project.assignees[0]}, ${project.assignees[1]} +${project.assignees.length - 2}`
 
   return (
     <div
@@ -57,17 +61,44 @@ export function TaskRow({ project, height }: TaskRowProps) {
         display: 'flex',
         height: `${height}px`,
         borderBottom: '1px solid #1e2130',
-        background: isSelected
-          ? 'rgba(59,130,246,0.08)'
-          : 'transparent',
+        background: isSelected ? 'rgba(59,130,246,0.08)' : 'transparent',
         borderLeft: isSelected ? '2px solid #3b82f6' : '2px solid transparent',
         cursor: 'pointer',
         transition: 'background 0.1s',
       }}
     >
-      {/* NÁZEV */}
-      <div style={{ ...cellStyle, width: '280px', gap: '6px' }}>
-        <span style={{ color: '#4b5563', fontSize: '10px', cursor: 'grab', flexShrink: 0 }}>⠿</span>
+      {/* NÁZEV — includes expand toggle (24px) + drag handle + name */}
+      <div style={{ ...cellStyle, width: '280px', gap: '4px' }}>
+        {/* Expand/collapse toggle */}
+        <button
+          onClick={(e) => {
+            e.stopPropagation()
+            toggleExpanded(project.id)
+          }}
+          style={{
+            width: '20px',
+            height: '20px',
+            flexShrink: 0,
+            background: 'transparent',
+            border: 'none',
+            color: hasTasks ? '#6b7280' : '#2a2d37',
+            cursor: hasTasks ? 'pointer' : 'default',
+            fontSize: '10px',
+            padding: 0,
+            display: 'flex',
+            alignItems: 'center',
+            justifyContent: 'center',
+            borderRadius: '3px',
+          }}
+          title={expanded ? 'Sbalit' : 'Rozbalit'}
+        >
+          {hasTasks ? (expanded ? '▼' : '►') : ''}
+        </button>
+        <span
+          style={{ color: '#4b5563', fontSize: '10px', cursor: 'grab', flexShrink: 0 }}
+        >
+          ⠿
+        </span>
         <InlineCell
           value={project.name}
           onSave={(v) => updateProject(project.id, { name: v })}
