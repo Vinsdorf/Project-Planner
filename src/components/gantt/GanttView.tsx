@@ -6,6 +6,7 @@ import { ExcelTable } from './ExcelTable'
 import { GanttChart } from './GanttChart'
 import { FilterBar } from '@/components/shared/FilterBar'
 import { ProjectDetailPanel } from '@/components/project-detail/ProjectDetailPanel'
+import { dateToPixel } from '@/lib/ganttHelpers'
 
 export function GanttView() {
   const splitterWidth = useUIStore((s) => s.splitterWidth)
@@ -14,11 +15,19 @@ export function GanttView() {
   const projects = useProjectStore((s) => s.projects)
   const tasks = useProjectStore((s) => s.tasks)
   const rebuildConflictMap = useUIStore((s) => s.rebuildConflictMap)
+  const zoomLevel = useUIStore((s) => s.zoomLevel)
 
   // Reactively rebuild conflict map whenever projects or tasks change
   useEffect(() => {
     rebuildConflictMap(projects, tasks)
   }, [projects, tasks, rebuildConflictMap])
+
+  // Scroll gantt to today on mount and whenever zoom changes
+  useEffect(() => {
+    if (!ganttRef.current) return
+    const todayPx = dateToPixel(new Date(), zoomLevel)
+    ganttRef.current.scrollLeft = Math.max(0, todayPx - 160)
+  }, [zoomLevel])
 
   const tableRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<HTMLDivElement>(null)

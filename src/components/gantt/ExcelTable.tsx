@@ -444,8 +444,13 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
             : updateTask(row.task.id, { name: v })
 
           const updateAssignees = (a: string[]) => {
-            if (isProject) updateProject((row as { project: Project }).project.id, { assignees: a })
-            else updateTask((row as { task: ProjectTask }).task.id, { assignees: a })
+            const prevCount = Math.max(1, rowAssignees.length)
+            const newCount = Math.max(1, a.length)
+            const newDuration = prevCount !== newCount
+              ? Math.max(1, Math.round(duration * prevCount / newCount))
+              : duration
+            if (isProject) updateProject((row as { project: Project }).project.id, { assignees: a, plannedDuration: newDuration })
+            else updateTask((row as { task: ProjectTask }).task.id, { assignees: a, plannedDuration: newDuration })
           }
 
           const updateStart = (v: string) => {
