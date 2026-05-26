@@ -68,12 +68,11 @@ export function GanttTimeline({ zoomLevel }: GanttTimelineProps) {
         top: 0,
         zIndex: 10,
         background: '#222535',
-        borderBottom: '1px solid #2a2d37',
         flexShrink: 0,
       }}
     >
       {/* Row 1: Month header */}
-      <div style={{ display: 'flex', height: '22px', borderBottom: '1px solid #2a2d37' }}>
+      <div style={{ display: 'flex', height: '13px', borderBottom: '1px solid #2a2d37' }}>
         {monthSegments.map((seg) => (
           <div
             key={seg.label + seg.startDay}
@@ -84,7 +83,7 @@ export function GanttTimeline({ zoomLevel }: GanttTimelineProps) {
               display: 'flex',
               alignItems: 'center',
               padding: '0 6px',
-              fontSize: '10px',
+              fontSize: '9px',
               fontWeight: 600,
               color: '#6b7280',
               letterSpacing: '0.05em',
@@ -98,7 +97,7 @@ export function GanttTimeline({ zoomLevel }: GanttTimelineProps) {
       </div>
 
       {/* Row 2: Day numbers */}
-      <div style={{ display: 'flex', height: '20px' }}>
+      <div style={{ display: 'flex', height: '19px', borderBottom: '1px solid #2a2d37' }}>
         {days.map((day, i) => {
           const weekend = isWeekend(day)
           const holiday = isCzechHoliday(day)

@@ -30,6 +30,7 @@ export function GanttView() {
   }, [zoomLevel])
 
   const tableRef = useRef<HTMLDivElement>(null)
+  const leftScrollRef = useRef<HTMLDivElement>(null)
   const ganttRef = useRef<HTMLDivElement>(null)
   const draggingRef = useRef(false)
   const startXRef = useRef(0)
@@ -59,7 +60,7 @@ export function GanttView() {
     [splitterWidth, setSplitterWidth]
   )
 
-  // Sync scroll between table and gantt
+  // Bidirectional vertical scroll sync between table and gantt
   const syncingRef = useRef(false)
   const handleTableScroll = (e: React.UIEvent<HTMLDivElement>) => {
     if (syncingRef.current) return
@@ -69,14 +70,21 @@ export function GanttView() {
       syncingRef.current = false
     }
   }
-  const handleGanttScroll = (e: React.UIEvent<HTMLDivElement>) => {
-    if (syncingRef.current) return
-    if (tableRef.current) {
+
+  // Attach gantt → table sync via event listener (avoids prop threading through GanttChart)
+  useEffect(() => {
+    const gantt = ganttRef.current
+    const left = leftScrollRef.current
+    if (!gantt || !left) return
+    const onGanttScroll = () => {
+      if (syncingRef.current) return
       syncingRef.current = true
-      tableRef.current.scrollTop = e.currentTarget.scrollTop
+      left.scrollTop = gantt.scrollTop
       syncingRef.current = false
     }
-  }
+    gantt.addEventListener('scroll', onGanttScroll)
+    return () => gantt.removeEventListener('scroll', onGanttScroll)
+  }, [])
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', height: '100%', overflow: 'hidden' }}>
@@ -95,6 +103,7 @@ export function GanttView() {
           }}
         >
           <div
+            ref={leftScrollRef}
             style={{ flex: 1, overflow: 'auto' }}
             onScroll={handleTableScroll}
           >
