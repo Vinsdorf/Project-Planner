@@ -205,96 +205,41 @@ function DateCell({ value, onCommit }: { value: string; onCommit: (v: string) =>
   )
 }
 
-// ─── single-select owner dropdown (for projects) ──────────────────────────
-function OwnerDropdown({ value, options, onChange }: {
-  value: string        // single name or ''
-  options: string[]
-  onChange: (name: string) => void
-}) {
-  const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
-
-  useEffect(() => {
-    if (!open) return
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
-    document.addEventListener('mousedown', h)
-    return () => document.removeEventListener('mousedown', h)
-  }, [open])
-
-  return (
-    <div ref={ref} style={{ position: 'relative', width: '100%' }}>
-      <div
-        onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
-        style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '4px', overflow: 'hidden' }}
-      >
-        {value
-          ? <span style={{ background: 'rgba(99,102,241,0.2)', border: '1px solid rgba(99,102,241,0.4)', borderRadius: '3px', padding: '1px 6px', fontSize: '11px', color: '#a5b4fc', whiteSpace: 'nowrap' }}>{value}</span>
-          : <span style={{ color: '#3a3d4a', fontSize: '11px' }}>—</span>
-        }
-        <span style={{ color: '#4b5563', fontSize: '8px', flexShrink: 0 }}>▾</span>
-      </div>
-      {open && (
-        <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
-          <div style={{
-            position: 'absolute', top: 'calc(100% + 2px)', left: 0, zIndex: 50,
-            background: '#1a1d27', border: '1px solid #2a2d37', borderRadius: '6px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.5)', minWidth: '140px', maxHeight: '220px', overflowY: 'auto',
-          }}>
-            {/* clear option */}
-            <div
-              onMouseDown={() => { onChange(''); setOpen(false) }}
-              style={{ padding: '6px 12px', fontSize: '11px', color: '#6b7280', cursor: 'pointer', borderBottom: '1px solid #252836' }}
-              onMouseEnter={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.04)' }}
-              onMouseLeave={(e) => { (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
-            >— žádný vlastník</div>
-            {options.map((name) => (
-              <div
-                key={name}
-                onMouseDown={() => { onChange(name); setOpen(false) }}
-                style={{
-                  padding: '7px 12px', fontSize: '12px', cursor: 'pointer',
-                  color: name === value ? '#a5b4fc' : '#e8eaf6',
-                  background: name === value ? 'rgba(99,102,241,0.12)' : 'transparent',
-                  display: 'flex', alignItems: 'center', gap: '6px',
-                }}
-                onMouseEnter={(e) => { if (name !== value) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.05)' }}
-                onMouseLeave={(e) => { if (name !== value) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
-              >
-                {name === value && <span style={{ fontSize: '9px' }}>✓</span>}
-                {name}
-              </div>
-            ))}
-          </div>
-        </>
-      )}
-    </div>
-  )
-}
-
-// ─── multi-select assignee dropdown (for tasks) ───────────────────────────
+// ─── multi-select assignee dropdown (projects + tasks) ────────────────────
 function AssigneeDropdown({ assignees, options, onChange }: {
   assignees: string[]
   options: string[]
   onChange: (a: string[]) => void
 }) {
   const [open, setOpen] = useState(false)
-  const ref = useRef<HTMLDivElement>(null)
+  const [dropPos, setDropPos] = useState({ top: 0, left: 0, width: 0 })
+  const triggerRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
     if (!open) return
-    const h = (e: MouseEvent) => { if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false) }
+    const h = (e: MouseEvent) => {
+      if (triggerRef.current && !triggerRef.current.contains(e.target as Node)) setOpen(false)
+    }
     document.addEventListener('mousedown', h)
     return () => document.removeEventListener('mousedown', h)
   }, [open])
+
+  const handleOpen = (e: React.MouseEvent) => {
+    e.stopPropagation()
+    if (!open && triggerRef.current) {
+      const rect = triggerRef.current.getBoundingClientRect()
+      setDropPos({ top: rect.bottom + 2, left: rect.left, width: Math.max(rect.width, 160) })
+    }
+    setOpen((v) => !v)
+  }
 
   const toggle = (name: string) =>
     onChange(assignees.includes(name) ? assignees.filter((a) => a !== name) : [...assignees, name])
 
   return (
-    <div ref={ref} style={{ position: 'relative', width: '100%' }}>
+    <div ref={triggerRef} style={{ position: 'relative', width: '100%' }}>
       <div
-        onClick={(e) => { e.stopPropagation(); setOpen(!open) }}
+        onClick={handleOpen}
         style={{ cursor: 'pointer', display: 'flex', alignItems: 'center', gap: '3px', overflow: 'hidden' }}
       >
         {assignees.length === 0
@@ -310,11 +255,15 @@ function AssigneeDropdown({ assignees, options, onChange }: {
       </div>
       {open && (
         <>
-          <div style={{ position: 'fixed', inset: 0, zIndex: 49 }} onClick={() => setOpen(false)} />
+          <div style={{ position: 'fixed', inset: 0, zIndex: 999 }} onMouseDown={() => setOpen(false)} />
           <div style={{
-            position: 'absolute', top: 'calc(100% + 2px)', left: 0, zIndex: 50,
+            position: 'fixed',
+            top: `${dropPos.top}px`,
+            left: `${dropPos.left}px`,
+            minWidth: `${dropPos.width}px`,
+            zIndex: 1000,
             background: '#1a1d27', border: '1px solid #2a2d37', borderRadius: '6px',
-            boxShadow: '0 8px 24px rgba(0,0,0,0.5)', minWidth: '150px', maxHeight: '220px', overflowY: 'auto',
+            boxShadow: '0 8px 24px rgba(0,0,0,0.6)', maxHeight: '240px', overflowY: 'auto',
           }}>
             {options.length === 0
               ? <div style={{ padding: '10px 12px', fontSize: '11px', color: '#4b5563' }}>Žádní řešitelé — přidejte je ve Zdrojích</div>
@@ -323,7 +272,7 @@ function AssigneeDropdown({ assignees, options, onChange }: {
                   return (
                     <div
                       key={name}
-                      onMouseDown={() => toggle(name)}
+                      onMouseDown={(e) => { e.preventDefault(); toggle(name) }}
                       style={{
                         display: 'flex', alignItems: 'center', gap: '8px',
                         padding: '7px 12px', fontSize: '12px', cursor: 'pointer',
@@ -331,7 +280,7 @@ function AssigneeDropdown({ assignees, options, onChange }: {
                         background: sel ? 'rgba(59,130,246,0.1)' : 'transparent',
                       }}
                       onMouseEnter={(e) => { if (!sel) (e.currentTarget as HTMLDivElement).style.background = 'rgba(255,255,255,0.05)' }}
-                      onMouseLeave={(e) => { if (!sel) (e.currentTarget as HTMLDivElement).style.background = 'transparent' }}
+                      onMouseLeave={(e) => { if (!sel) (e.currentTarget as HTMLDivElement).style.background = sel ? 'rgba(59,130,246,0.1)' : 'transparent' }}
                     >
                       <span style={{
                         width: '13px', height: '13px', borderRadius: '3px', flexShrink: 0,
@@ -426,7 +375,7 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
   }, [getTasksForProject, addTask, isExpanded, toggleExpanded])
 
   // column widths
-  const COL = { expand: 28, name: 210, owner: 130, assignee: 150, status: 80, start: 82, dur: 58, end: 82, pct: 48, actions: 32 }
+  const COL = { expand: 28, name: 210, assignee: 200, status: 80, start: 82, dur: 58, end: 82, pct: 48, actions: 32 }
   const totalW = Object.values(COL).reduce((a, b) => a + b, 0)
 
   const headerCell: React.CSSProperties = {
@@ -452,7 +401,6 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
       }}>
         <div style={{ ...headerCell, width: COL.expand }} />
         <div style={{ ...headerCell, width: COL.name }}>NÁZEV</div>
-        <div style={{ ...headerCell, width: COL.owner }}>VLASTNÍK</div>
         <div style={{ ...headerCell, width: COL.assignee }}>ŘEŠITELÉ</div>
         <div style={{ ...headerCell, width: COL.status, justifyContent: 'center' }}>STATUS</div>
         <div style={{ ...headerCell, width: COL.start, justifyContent: 'center' }}>ZAČÁTEK</div>
@@ -472,9 +420,7 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
 
           // derived values
           const name = isProject ? row.project.name : row.task.name
-          // project: assignees[0] = business owner; tasks: assignees = multi
-          const ownerName = isProject ? (row.project.assignees[0] ?? '') : ''
-          const taskAssignees = !isProject ? row.task.assignees : []
+          const rowAssignees = isProject ? row.project.assignees : row.task.assignees
           const startDate = isProject ? row.project.startDate : row.task.startDate
           const duration = isProject ? row.project.plannedDuration : row.task.plannedDuration
           const endDateStr = startDate && duration > 0
@@ -497,11 +443,10 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
             ? updateProject(row.project.id, { name: v })
             : updateTask(row.task.id, { name: v })
 
-          const updateOwner = (name: string) =>
-            updateProject((row as { project: Project }).project.id, { assignees: name ? [name] : [] })
-
-          const updateTaskAssignees = (a: string[]) =>
-            updateTask((row as { task: ProjectTask }).task.id, { assignees: a })
+          const updateAssignees = (a: string[]) => {
+            if (isProject) updateProject((row as { project: Project }).project.id, { assignees: a })
+            else updateTask((row as { task: ProjectTask }).task.id, { assignees: a })
+          }
 
           const updateStart = (v: string) => {
             isProject ? updateProject(row.project.id, { startDate: v }) : updateTask(row.task.id, { startDate: v })
@@ -575,20 +520,9 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
                   />
                 </div>
 
-                {/* VLASTNÍK — single select, projects only */}
-                <div style={{ ...cell, width: COL.owner }}>
-                  {isProject
-                    ? <OwnerDropdown value={ownerName} options={allNames} onChange={updateOwner} />
-                    : <span style={{ color: '#252840', fontSize: '11px', paddingLeft: '4px' }}>—</span>
-                  }
-                </div>
-
-                {/* ŘEŠITELÉ — multi-select, tasks only */}
+                {/* ŘEŠITELÉ — multi-select, projects + tasks */}
                 <div style={{ ...cell, width: COL.assignee }}>
-                  {!isProject
-                    ? <AssigneeDropdown assignees={taskAssignees} options={allNames} onChange={updateTaskAssignees} />
-                    : <span style={{ color: '#252840', fontSize: '11px', paddingLeft: '4px' }}>—</span>
-                  }
+                  <AssigneeDropdown assignees={rowAssignees} options={allNames} onChange={updateAssignees} />
                 </div>
 
                 {/* STATUS — traffic lights, projects only */}
