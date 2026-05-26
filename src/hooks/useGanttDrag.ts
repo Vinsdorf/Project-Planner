@@ -9,7 +9,7 @@ import { nextWorkday, workdaysBetween, parseISODate, addWorkdays } from '@/lib/w
 type DragType = 'move' | 'resize-left' | 'resize-right'
 
 export type DragTarget =
-  | { type: 'project'; id: string }
+  | { type: 'project'; id: string; actual?: boolean }
   | { type: 'task'; id: string }
 
 function toISOString(date: Date): string {
@@ -25,7 +25,6 @@ interface DragState {
   startX: number
   originalStartDate: string
   originalDuration: number
-  // live preview (pixel offset)
   previewLeftPx: number
 }
 
@@ -47,16 +46,26 @@ export function useGanttDrag(zoomLevel: number) {
     ) => {
       e.preventDefault()
       e.stopPropagation()
-      const startDate = item.startDate ?? ''
-      const leftPx = startDate
-        ? dateToPixel(parseISODate(startDate), zoomLevel)
-        : 0
+
+      // When dragging the actual bar of a project, use actual dates as origin
+      let startDate: string
+      let duration: number
+      if (target.type === 'project' && target.actual) {
+        const proj = item as Project
+        startDate = proj.actualStartDate ?? proj.startDate ?? ''
+        duration = proj.actualDuration ?? proj.plannedDuration
+      } else {
+        startDate = item.startDate ?? ''
+        duration = item.plannedDuration
+      }
+
+      const leftPx = startDate ? dateToPixel(parseISODate(startDate), zoomLevel) : 0
       setDragState({
         target,
         dragType,
         startX: e.clientX,
         originalStartDate: startDate,
-        originalDuration: item.plannedDuration,
+        originalDuration: duration,
         previewLeftPx: leftPx,
       })
     },
@@ -66,10 +75,13 @@ export function useGanttDrag(zoomLevel: number) {
   useEffect(() => {
     if (!dragState) return
 
+    const isActual =
+      dragState.target.type === 'project' && dragState.target.actual === true
+
     const handleMouseMove = (e: MouseEvent) => {
       const dx = e.clientX - dragState.startX
-
       if (!dragState.originalStartDate) return
+
       const origStart = parseISODate(dragState.originalStartDate)
       const origLeftPx = dateToPixel(origStart, zoomLevel)
 
@@ -79,17 +91,16 @@ export function useGanttDrag(zoomLevel: number) {
         const newStart = nextWorkday(rawDate)
         const newStartStr = toISOString(newStart)
 
-        setDragState((prev) =>
-          prev ? { ...prev, previewLeftPx: newLeftPx } : prev
-        )
+        setDragState((prev) => prev ? { ...prev, previewLeftPx: newLeftPx } : prev)
 
         if (dragState.target.type === 'project') {
-          updateProject(dragState.target.id, { startDate: newStartStr })
+          updateProject(dragState.target.id,
+            isActual ? { actualStartDate: newStartStr } : { startDate: newStartStr }
+          )
         } else {
           updateTask(dragState.target.id, { startDate: newStartStr })
         }
       } else if (dragState.dragType === 'resize-right') {
-        // Compute new right edge
         const origEnd = addWorkdays(origStart, dragState.originalDuration - 1)
         const origRightPx = dateToPixel(origEnd, zoomLevel) + zoomLevel
         const newRightPx = Math.max(origLeftPx + zoomLevel, origRightPx + dx)
@@ -98,7 +109,9 @@ export function useGanttDrag(zoomLevel: number) {
         const newMD = Math.max(1, workdaysBetween(origStart, newEnd))
 
         if (dragState.target.type === 'project') {
-          updateProject(dragState.target.id, { plannedDuration: newMD })
+          updateProject(dragState.target.id,
+            isActual ? { actualDuration: newMD } : { plannedDuration: newMD }
+          )
         } else {
           updateTask(dragState.target.id, { plannedDuration: newMD })
         }
@@ -107,15 +120,16 @@ export function useGanttDrag(zoomLevel: number) {
         const rawDate = pixelToDate(Math.max(0, newLeftPx), zoomLevel)
         const newStart = nextWorkday(rawDate)
         const origEnd = addWorkdays(origStart, dragState.originalDuration - 1)
-        // Ensure new start doesn't pass the original end
         if (newStart <= origEnd) {
           const newMD = Math.max(1, workdaysBetween(newStart, origEnd))
           const newStartStr = toISOString(newStart)
-          setDragState((prev) =>
-            prev ? { ...prev, previewLeftPx: newLeftPx } : prev
-          )
+          setDragState((prev) => prev ? { ...prev, previewLeftPx: newLeftPx } : prev)
           if (dragState.target.type === 'project') {
-            updateProject(dragState.target.id, { startDate: newStartStr, plannedDuration: newMD })
+            updateProject(dragState.target.id,
+              isActual
+                ? { actualStartDate: newStartStr, actualDuration: newMD }
+                : { startDate: newStartStr, plannedDuration: newMD }
+            )
           } else {
             updateTask(dragState.target.id, { startDate: newStartStr, plannedDuration: newMD })
           }
