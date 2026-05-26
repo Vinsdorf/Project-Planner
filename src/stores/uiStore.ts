@@ -32,7 +32,7 @@ interface UIStore {
 export const useUIStore = create<UIStore>()(
   persist(
     (set) => ({
-      zoomLevel: 40,
+      zoomLevel: 8,
       splitterWidth: 700,
       selectedProjectId: null,
       detailPanelOpen: false,

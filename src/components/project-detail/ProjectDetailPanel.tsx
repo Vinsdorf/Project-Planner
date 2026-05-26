@@ -375,17 +375,14 @@ export function ProjectDetailPanel() {
           </div>
 
           <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '8px' }}>
-            <Field label="Plán start (týden)">
+            <Field label="Plán start">
               <TextInput
-                value={String(project.plannedStartWeek)}
-                onChange={(v) => {
-                  const n = parseInt(v)
-                  if (!isNaN(n)) update({ plannedStartWeek: n })
-                }}
-                type="number"
+                value={project.startDate ?? ''}
+                onChange={(v) => update({ startDate: v })}
+                type="date"
               />
             </Field>
-            <Field label="Plán délka (týdny)">
+            <Field label="Pracnost (MD)">
               <TextInput
                 value={String(project.plannedDuration)}
                 onChange={(v) => {
@@ -397,15 +394,12 @@ export function ProjectDetailPanel() {
             </Field>
             <Field label="Skutečný start">
               <TextInput
-                value={String(project.actualStartWeek ?? '')}
-                onChange={(v) => {
-                  const n = parseInt(v)
-                  update({ actualStartWeek: isNaN(n) ? undefined : n })
-                }}
-                type="number"
+                value={project.actualStartDate ?? ''}
+                onChange={(v) => update({ actualStartDate: v || undefined })}
+                type="date"
               />
             </Field>
-            <Field label="Skutečná délka">
+            <Field label="Skutečná délka (MD)">
               <TextInput
                 value={String(project.actualDuration ?? '')}
                 onChange={(v) => {

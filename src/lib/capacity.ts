@@ -1,13 +1,28 @@
 import type { Project, ProjectTask, Resource } from '@/types'
+import { addWorkdays, parseISODate, workdaysBetween, getWeekNumber } from './workdays'
 
 interface ScheduleSlot {
   id: string
   name: string
   assignees: string[]
-  startWeek: number
-  endWeek: number
+  startDate: string   // ISO date
+  endDate: string     // ISO date (calculated from startDate + MD)
   sourceType: 'project' | 'task'
   sourceId: string
+}
+
+function toEndDate(startDate: string, md: number): string {
+  if (!startDate) return startDate
+  try {
+    const start = parseISODate(startDate)
+    const end = md > 0 ? addWorkdays(start, md - 1) : start
+    const y = end.getFullYear()
+    const m = String(end.getMonth() + 1).padStart(2, '0')
+    const d = String(end.getDate()).padStart(2, '0')
+    return `${y}-${m}-${d}`
+  } catch {
+    return startDate
+  }
 }
 
 export function buildSlots(projects: Project[], tasks: ProjectTask[]): ScheduleSlot[] {
@@ -19,24 +34,26 @@ export function buildSlots(projects: Project[], tasks: ProjectTask[]): ScheduleS
     if (projectTasks.length > 0) {
       // Project has tasks — use tasks for scheduling
       for (const task of projectTasks) {
+        if (!task.startDate) continue
         slots.push({
           id: `task-${task.id}`,
           name: `${project.name} – ${task.name}`,
           assignees: task.assignees,
-          startWeek: task.plannedStartWeek,
-          endWeek: task.plannedStartWeek + task.plannedDuration - 1,
+          startDate: task.startDate,
+          endDate: toEndDate(task.startDate, task.plannedDuration),
           sourceType: 'task',
           sourceId: task.id,
         })
       }
     } else {
       // Project has no tasks — use project-level assignees
+      if (!project.startDate) continue
       slots.push({
         id: `project-${project.id}`,
         name: project.name,
         assignees: project.assignees,
-        startWeek: project.plannedStartWeek,
-        endWeek: project.plannedStartWeek + project.plannedDuration - 1,
+        startDate: project.startDate,
+        endDate: toEndDate(project.startDate, project.plannedDuration),
         sourceType: 'project',
         sourceId: project.id,
       })
@@ -44,6 +61,26 @@ export function buildSlots(projects: Project[], tasks: ProjectTask[]): ScheduleS
   }
 
   return slots
+}
+
+// Check if two date ranges overlap (inclusive on both ends)
+function dateRangesOverlap(
+  aStart: string,
+  aEnd: string,
+  bStart: string,
+  bEnd: string
+): boolean {
+  return aStart <= bEnd && bStart <= aEnd
+}
+
+// Get ISO week number from date string "YYYY-MM-DD"
+function isoDateToWeek(dateStr: string): number {
+  try {
+    const [y, m, d] = dateStr.split('-').map(Number)
+    return getWeekNumber(new Date(y, m - 1, d))
+  } catch {
+    return 1
+  }
 }
 
 export function calculateConflicts(
@@ -55,16 +92,21 @@ export function calculateConflicts(
 } {
   const slots = buildSlots(projects, tasks)
 
-  // Build assignee → week → slotIds mapping
+  // Build assignee → week → slotIds mapping (using ISO week numbers for heatmap)
   const assigneeWeekSlots = new Map<string, Map<number, string[]>>()
 
   for (const slot of slots) {
+    if (!slot.startDate || !slot.endDate) continue
+    // Enumerate weeks covered by this slot
+    const startWeek = isoDateToWeek(slot.startDate)
+    const endWeek = isoDateToWeek(slot.endDate)
+
     for (const assignee of slot.assignees) {
       if (!assigneeWeekSlots.has(assignee)) {
         assigneeWeekSlots.set(assignee, new Map())
       }
       const weekMap = assigneeWeekSlots.get(assignee)!
-      for (let w = slot.startWeek; w <= Math.min(slot.endWeek, 52); w++) {
+      for (let w = startWeek; w <= Math.min(endWeek, 52); w++) {
         const existing = weekMap.get(w) ?? []
         weekMap.set(w, [...existing, slot.id])
       }
@@ -140,9 +182,11 @@ export function calculateConflictsLegacy(
 
     for (const project of projects) {
       if (!project.assignees.includes(resource.name)) continue
-      const start = project.plannedStartWeek
-      const end = start + project.plannedDuration - 1
-      for (let w = start; w <= Math.min(end, 52); w++) {
+      if (!project.startDate) continue
+      const startWeek = isoDateToWeek(project.startDate)
+      const endDate = toEndDate(project.startDate, project.plannedDuration)
+      const endWeek = isoDateToWeek(endDate)
+      for (let w = startWeek; w <= Math.min(endWeek, 52); w++) {
         const existing = weekMap.get(w) ?? []
         weekMap.set(w, [...existing, project.name])
       }
@@ -152,3 +196,6 @@ export function calculateConflictsLegacy(
 
   return result
 }
+
+// Re-export workdaysBetween for convenience
+export { workdaysBetween }

@@ -6,6 +6,7 @@ import { useResourceStore } from '@/stores/resourceStore'
 import { TrafficLightDots } from './TrafficLightDots'
 import type { Project, ProjectTask, TrafficLight } from '@/types'
 import { TEAMS } from '@/lib/defaults'
+import { formatDateCZ, parseISODate, addWorkdays } from '@/lib/workdays'
 
 export const ROW_H = 36
 
@@ -18,9 +19,11 @@ type VRow =
 function clamp(v: number, lo: number, hi: number) {
   return Math.max(lo, Math.min(hi, v))
 }
-function parseWeek(s: string) {
-  const n = parseInt(s, 10)
-  return isNaN(n) ? 1 : clamp(n, 1, 52)
+function toISODate(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
 }
 function parsePct(s: string) {
   const n = parseInt(s, 10)
@@ -138,6 +141,45 @@ function Cell({ value, onCommit, onTabOut, onEnterOut, type = 'text', options, p
       }}
     >
       {value || <span style={{ color: '#3a3d4a' }}>{placeholder ?? '—'}</span>}
+    </div>
+  )
+}
+
+// ─── date cell ────────────────────────────────────────────────────────────
+function DateCell({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
+  const [editing, setEditing] = useState(false)
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  useEffect(() => {
+    if (editing) inputRef.current?.focus()
+  }, [editing])
+
+  const display = value ? formatDateCZ(parseISODate(value)) : '—'
+
+  if (editing) {
+    return (
+      <input
+        ref={inputRef}
+        type="date"
+        value={value}
+        min="2025-01-01"
+        max="2027-12-31"
+        onChange={(e) => { if (e.target.value) onCommit(e.target.value) }}
+        onBlur={() => setEditing(false)}
+        style={{
+          background: '#0d0f1a', border: '1px solid #3b82f6', borderRadius: '3px',
+          color: '#e8eaf6', fontSize: '10px', padding: '1px 2px', width: '100%', outline: 'none',
+        }}
+      />
+    )
+  }
+
+  return (
+    <div
+      onClick={() => setEditing(true)}
+      style={{ cursor: 'text', fontSize: '11px', color: '#9ca3af', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', width: '100%' }}
+    >
+      {display}
     </div>
   )
 }
@@ -336,7 +378,7 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
       name: '', type: 'Projekt', team: TEAMS[0], assignees: [],
       phase: 'Idea', statusOverall: 'N/A', statusScope: 'N/A',
       statusTime: 'N/A', statusBudget: 'N/A', priority: 'Medium',
-      plannedStartWeek: 1, plannedDuration: 4, percentComplete: 0,
+      startDate: '2025-01-06', plannedDuration: 10, percentComplete: 0,
       sortOrder: newSortOrder,
     }
     addProject(p)
@@ -346,13 +388,15 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
     const projectTasks = getTasksForProject(projectId)
     const newSortOrder = afterSortOrder !== undefined ? afterSortOrder + 1 : projectTasks.length
     const lastTask = projectTasks[projectTasks.length - 1]
-    const newStart = lastTask ? lastTask.plannedStartWeek + lastTask.plannedDuration : 1
+    const newStart = lastTask && lastTask.startDate
+      ? toISODate(addWorkdays(parseISODate(lastTask.startDate), lastTask.plannedDuration))
+      : '2025-01-06'
     addTask({
       projectId,
       name: '',
       assignees: [],
-      plannedStartWeek: newStart,
-      plannedDuration: 2,
+      startDate: newStart,
+      plannedDuration: 5,
       percentComplete: 0,
       sortOrder: newSortOrder,
     })
@@ -361,7 +405,7 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
   }, [getTasksForProject, addTask, isExpanded, toggleExpanded])
 
   // column widths
-  const COL = { expand: 28, name: 210, owner: 130, assignee: 150, status: 80, start: 58, dur: 58, end: 58, pct: 48, actions: 32 }
+  const COL = { expand: 28, name: 210, owner: 130, assignee: 150, status: 80, start: 82, dur: 58, end: 82, pct: 48, actions: 32 }
   const totalW = Object.values(COL).reduce((a, b) => a + b, 0)
 
   const headerCell: React.CSSProperties = {
@@ -391,7 +435,7 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
         <div style={{ ...headerCell, width: COL.assignee }}>ŘEŠITELÉ</div>
         <div style={{ ...headerCell, width: COL.status, justifyContent: 'center' }}>STATUS</div>
         <div style={{ ...headerCell, width: COL.start, justifyContent: 'center' }}>ZAČÁTEK</div>
-        <div style={{ ...headerCell, width: COL.dur, justifyContent: 'center' }}>DÉLKA</div>
+        <div style={{ ...headerCell, width: COL.dur, justifyContent: 'center' }}>PRACNOST</div>
         <div style={{ ...headerCell, width: COL.end, justifyContent: 'center' }}>KONEC</div>
         <div style={{ ...headerCell, width: COL.pct, justifyContent: 'center' }}>%</div>
         <div style={{ ...headerCell, width: COL.actions }} />
@@ -410,9 +454,11 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
           // project: assignees[0] = business owner; tasks: assignees = multi
           const ownerName = isProject ? (row.project.assignees[0] ?? '') : ''
           const taskAssignees = !isProject ? row.task.assignees : []
-          const startWeek = isProject ? row.project.plannedStartWeek : row.task.plannedStartWeek
+          const startDate = isProject ? row.project.startDate : row.task.startDate
           const duration = isProject ? row.project.plannedDuration : row.task.plannedDuration
-          const endWeek = startWeek + duration - 1
+          const endDateStr = startDate && duration > 0
+            ? formatDateCZ(addWorkdays(parseISODate(startDate), duration - 1))
+            : '—'
           const pct = isProject
             ? Math.round(row.project.percentComplete * 100)
             : Math.round(row.task.percentComplete * 100)
@@ -437,8 +483,7 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
             updateTask((row as { task: ProjectTask }).task.id, { assignees: a })
 
           const updateStart = (v: string) => {
-            const w = parseWeek(v)
-            isProject ? updateProject(row.project.id, { plannedStartWeek: w }) : updateTask(row.task.id, { plannedStartWeek: w })
+            isProject ? updateProject(row.project.id, { startDate: v }) : updateTask(row.task.id, { startDate: v })
           }
 
           const updateDur = (v: string) => {
@@ -539,18 +584,18 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
                 </div>
 
                 {/* ZAČÁTEK */}
-                <div style={{ ...cell, width: COL.start, justifyContent: 'center', color: '#9ca3af' }}>
-                  <Cell value={String(startWeek)} onCommit={updateStart} type="number" style={{ textAlign: 'center', color: '#9ca3af', fontSize: '12px' }} />
+                <div style={{ ...cell, width: COL.start, justifyContent: 'center' }}>
+                  <DateCell value={startDate ?? ''} onCommit={updateStart} />
                 </div>
 
-                {/* DÉLKA */}
+                {/* PRACNOST */}
                 <div style={{ ...cell, width: COL.dur, justifyContent: 'center', color: '#9ca3af' }}>
                   <Cell value={String(duration)} onCommit={updateDur} type="number" style={{ textAlign: 'center', color: '#9ca3af', fontSize: '12px' }} />
                 </div>
 
                 {/* KONEC (calculated, read-only) */}
                 <div style={{ ...cell, width: COL.end, justifyContent: 'center', color: '#4b5563', fontSize: '11px' }}>
-                  T{endWeek}
+                  {endDateStr}
                 </div>
 
                 {/* % */}

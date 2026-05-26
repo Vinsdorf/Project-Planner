@@ -3,12 +3,11 @@ import { StatsCards } from '@/components/dashboard/StatsCards'
 import { PhaseChart } from '@/components/dashboard/PhaseChart'
 import { TeamChart } from '@/components/dashboard/TeamChart'
 import { useProjectStore } from '@/stores/projectStore'
-import { getCurrentWeek } from '@/lib/weekUtils'
-import { CURRENT_YEAR } from '@/lib/defaults'
+import { formatDateCZ } from '@/lib/workdays'
 
 export default function DashboardPage() {
   const projects = useProjectStore((s) => s.projects)
-  const currentWeek = getCurrentWeek()
+  const today = formatDateCZ(new Date())
 
   return (
     <div
@@ -32,7 +31,7 @@ export default function DashboardPage() {
           Přehled portfolia
         </h1>
         <span style={{ fontSize: '13px', color: '#4b5563' }}>
-          {CURRENT_YEAR} · Týden {currentWeek} · {projects.length} projektů
+          Dnes {today} · {projects.length} projektů
         </span>
       </div>
 

@@ -4,8 +4,8 @@ import { useProjectStore } from '@/stores/projectStore'
 import { useResourceStore } from '@/stores/resourceStore'
 import { useUIStore } from '@/stores/uiStore'
 import { calculateConflicts, getHeatmapColor } from '@/lib/capacity'
-import { getWeeksInYear } from '@/lib/weekUtils'
-import { CURRENT_YEAR } from '@/lib/defaults'
+
+const TOTAL_WEEKS = 52
 
 const CELL_W = 16
 const CELL_H = 28
@@ -24,7 +24,6 @@ export function CapacityHeatmap() {
 
   const activeResources = resources.filter((r) => r.isActive)
   const { heatmapData } = calculateConflicts(projects, tasks)
-  const totalWeeks = getWeeksInYear(CURRENT_YEAR)
   const cellWidth = Math.max(CELL_W, zoomLevel / 2)
 
   return (
@@ -36,7 +35,7 @@ export function CapacityHeatmap() {
       <div style={{ overflowX: 'auto' }}>
         {/* Header row — week numbers */}
         <div style={{ display: 'flex', marginLeft: `${LABEL_W}px`, marginBottom: '2px' }}>
-          {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((w) => (
+          {Array.from({ length: TOTAL_WEEKS }, (_, i) => i + 1).map((w) => (
             <div
               key={w}
               style={{
@@ -90,7 +89,7 @@ export function CapacityHeatmap() {
               </div>
 
               {/* Week cells */}
-              {Array.from({ length: totalWeeks }, (_, i) => i + 1).map((w) => {
+              {Array.from({ length: TOTAL_WEEKS }, (_, i) => i + 1).map((w) => {
                 const projectsInWeek = weekMap.get(w) ?? []
                 const count = projectsInWeek.length
                 const bg = getHeatmapColor(count)

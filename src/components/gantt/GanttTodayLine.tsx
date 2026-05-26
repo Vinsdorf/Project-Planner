@@ -1,6 +1,6 @@
 'use client'
-import { getCurrentWeek } from '@/lib/weekUtils'
-import { weekToPixel } from '@/lib/ganttHelpers'
+import { dateToPixel } from '@/lib/ganttHelpers'
+import { formatDateCZ } from '@/lib/workdays'
 
 interface GanttTodayLineProps {
   zoomLevel: number
@@ -8,8 +8,9 @@ interface GanttTodayLineProps {
 }
 
 export function GanttTodayLine({ zoomLevel, totalHeight }: GanttTodayLineProps) {
-  const week = getCurrentWeek()
-  const left = weekToPixel(week, zoomLevel) + zoomLevel / 2
+  const today = new Date()
+  const left = dateToPixel(today, zoomLevel)
+  const label = formatDateCZ(today)
 
   return (
     <div
@@ -38,7 +39,7 @@ export function GanttTodayLine({ zoomLevel, totalHeight }: GanttTodayLineProps) 
           fontWeight: 600,
         }}
       >
-        Dnes
+        Dnes {label}
       </div>
     </div>
   )

@@ -1,7 +1,8 @@
 'use client'
 import { useState } from 'react'
 import type { Project, ProjectTask } from '@/types'
-import { getBarStyle, getActualBarStyle } from '@/lib/ganttHelpers'
+import { getBarPosition } from '@/lib/ganttHelpers'
+import { addWorkdays, formatDateCZ, parseISODate } from '@/lib/workdays'
 import { useGanttDrag } from '@/hooks/useGanttDrag'
 
 // Phase badge colors
@@ -15,6 +16,17 @@ const PHASE_COLORS: Record<string, string> = {
 
 const isDone = (phase: string) =>
   phase.startsWith('Hotovo') || phase === 'Zastaveno'
+
+function formatEndDate(startDateStr: string, md: number): string {
+  if (!startDateStr) return ''
+  try {
+    const start = parseISODate(startDateStr)
+    const end = md > 0 ? addWorkdays(start, md - 1) : start
+    return formatDateCZ(end)
+  } catch {
+    return ''
+  }
+}
 
 interface GanttBarProjectProps {
   mode: 'project'
@@ -40,8 +52,7 @@ export function GanttBar(props: GanttBarProps) {
 
   if (props.mode === 'project') {
     const { project, zoomLevel, hasConflict, isSummary } = props
-    const planned = getBarStyle(project, zoomLevel)
-    const actual = getActualBarStyle(project, zoomLevel)
+    const planned = getBarPosition(project.startDate, project.plannedDuration, zoomLevel)
     const done = isDone(project.phase)
 
     const barBg = hasConflict
@@ -59,9 +70,11 @@ export function GanttBar(props: GanttBarProps) {
         : 'rgba(59,130,246,0.4)'
     const borderWidth = hasConflict ? '2px' : '1px'
 
-    const tooltipText = `${project.name} | Týden ${project.plannedStartWeek} → ${
-      project.plannedStartWeek + project.plannedDuration - 1
-    } | ${project.plannedDuration} týdnů | ${Math.round(project.percentComplete * 100)}%`
+    const endDateStr = formatEndDate(project.startDate, project.plannedDuration)
+    const startDateFormatted = project.startDate
+      ? formatDateCZ(parseISODate(project.startDate))
+      : ''
+    const tooltipText = `${project.name} | ${startDateFormatted} → ${endDateStr} | ${project.plannedDuration} MD`
 
     return (
       <div style={{ position: 'relative', width: '100%', height: '100%' }}>
@@ -227,22 +240,6 @@ export function GanttBar(props: GanttBarProps) {
           )}
         </div>
 
-        {/* Actual bar */}
-        {actual && !done && !isSummary && (
-          <div
-            className="gantt-bar"
-            style={{
-              left: `${actual.left}px`,
-              width: `${Math.max(actual.width, 4)}px`,
-              background: 'rgba(59,130,246,0.7)',
-              border: '1px solid #3b82f6',
-              top: '4px',
-              height: '12px',
-              pointerEvents: 'none',
-            }}
-          />
-        )}
-
         {/* Tooltip */}
         {tooltip && (
           <div
@@ -271,12 +268,15 @@ export function GanttBar(props: GanttBarProps) {
 
   // Task bar mode
   const { task, projectName, zoomLevel, hasConflict } = props
-  const left = (task.plannedStartWeek - 1) * zoomLevel
-  const width = task.plannedDuration * zoomLevel
+  const pos = getBarPosition(task.startDate, task.plannedDuration, zoomLevel)
+  const { left, width } = pos
   const phaseColor = hasConflict ? '#ef4444' : (PHASE_COLORS[task.name] ?? '#6b7280')
-  const tooltipText = `${projectName} – ${task.name} | Týden ${task.plannedStartWeek} → ${
-    task.plannedStartWeek + task.plannedDuration - 1
-  } | ${task.plannedDuration} týdnů | ${Math.round(task.percentComplete * 100)}%`
+
+  const endDateStr = formatEndDate(task.startDate, task.plannedDuration)
+  const startDateFormatted = task.startDate
+    ? formatDateCZ(parseISODate(task.startDate))
+    : ''
+  const tooltipText = `${projectName} – ${task.name} | ${startDateFormatted} → ${endDateStr} | ${task.plannedDuration} MD`
 
   return (
     <div style={{ position: 'relative', width: '100%', height: '100%' }}>

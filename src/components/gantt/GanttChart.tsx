@@ -7,8 +7,8 @@ import { GanttBar } from './GanttBar'
 import { GanttGrid } from './GanttGrid'
 import { GanttTodayLine } from './GanttTodayLine'
 import { GanttZoomControls } from './GanttZoomControls'
-import { getWeeksInYear } from '@/lib/weekUtils'
-import { CURRENT_YEAR } from '@/lib/defaults'
+import { getTimelineWidth } from '@/lib/ganttHelpers'
+import { parseISODate, addWorkdays, workdaysBetween } from '@/lib/workdays'
 
 const ROW_HEIGHT = 36  // matches ExcelTable ROW_H
 const HEADER_HEIGHT = 32 // matches ExcelTable header
@@ -25,8 +25,7 @@ const GanttChart = forwardRef<HTMLDivElement, GanttChartProps>(
     const isExpanded = useProjectStore((s) => s.isExpanded)
     const zoomLevel = useUIStore((s) => s.zoomLevel)
     const slotConflicts = useUIStore((s) => s.slotConflicts)
-    const totalWeeks = getWeeksInYear(CURRENT_YEAR)
-    const totalWidth = totalWeeks * zoomLevel
+    const totalWidth = getTimelineWidth(zoomLevel)
 
     // Build all rows in order: project row, then (if expanded) task rows
     const rows: Array<
@@ -101,14 +100,21 @@ const GanttChart = forwardRef<HTMLDivElement, GanttChartProps>(
                   // Project bar always spans all its tasks automatically
                   let summaryProject = project
                   if (hasTasks) {
-                    const minStart = Math.min(...tasks.map((t) => t.plannedStartWeek))
-                    const maxEnd = Math.max(
-                      ...tasks.map((t) => t.plannedStartWeek + t.plannedDuration - 1)
-                    )
-                    summaryProject = {
-                      ...project,
-                      plannedStartWeek: minStart,
-                      plannedDuration: maxEnd - minStart + 1,
+                    const validTasks = tasks.filter((t) => t.startDate)
+                    if (validTasks.length > 0) {
+                      const toISO = (d: Date) =>
+                        `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, '0')}-${String(d.getDate()).padStart(2, '0')}`
+                      const startDates = validTasks.map((t) => parseISODate(t.startDate))
+                      const endDates = validTasks.map((t) =>
+                        t.plannedDuration > 0 ? addWorkdays(parseISODate(t.startDate), t.plannedDuration - 1) : parseISODate(t.startDate)
+                      )
+                      const minStart = startDates.reduce((a, b) => (a <= b ? a : b))
+                      const maxEnd = endDates.reduce((a, b) => (a >= b ? a : b))
+                      summaryProject = {
+                        ...project,
+                        startDate: toISO(minStart),
+                        plannedDuration: Math.max(1, workdaysBetween(minStart, maxEnd)),
+                      }
                     }
                   }
                   // Conflict = any task of this project has a conflict

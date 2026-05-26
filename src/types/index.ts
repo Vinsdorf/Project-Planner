@@ -12,7 +12,6 @@ export interface Project {
   type: ProjectType
   theme?: string
   costCenter?: string
-  startPeriod?: string
   team: string
   sponsor?: string
   owner?: string
@@ -33,10 +32,10 @@ export interface Project {
   teamImpact?: string
   targetKT?: number
   scopeMD?: number
-  plannedStartWeek: number
-  plannedDuration: number
-  actualStartWeek?: number
-  actualDuration?: number
+  startDate: string         // ISO date "YYYY-MM-DD"
+  plannedDuration: number   // man-days (MD)
+  actualStartDate?: string  // ISO date "YYYY-MM-DD"
+  actualDuration?: number   // actual MD
   percentComplete: number
   sortOrder: number
   createdAt: string
@@ -74,8 +73,8 @@ export interface ProjectTask {
   projectId: string
   name: string
   assignees: string[]
-  plannedStartWeek: number
-  plannedDuration: number
+  startDate: string       // ISO date "YYYY-MM-DD"
+  plannedDuration: number // man-days (MD)
   percentComplete: number
   sortOrder: number
   color?: string

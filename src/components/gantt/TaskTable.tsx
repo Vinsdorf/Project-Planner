@@ -3,6 +3,14 @@ import { forwardRef } from 'react'
 import { useProjectStore } from '@/stores/projectStore'
 import { TaskRow } from './TaskRow'
 import { TaskSubRow } from './TaskSubRow'
+import { parseISODate, addWorkdays } from '@/lib/workdays'
+
+function toISODate(date: Date): string {
+  const y = date.getFullYear()
+  const m = String(date.getMonth() + 1).padStart(2, '0')
+  const d = String(date.getDate()).padStart(2, '0')
+  return `${y}-${m}-${d}`
+}
 
 const ROW_HEIGHT = 40
 
@@ -121,15 +129,15 @@ const TaskTable = forwardRef<HTMLDivElement, TaskTableProps>(
                             disabled={exists}
                             onClick={() => {
                               const lastTask = tasks[tasks.length - 1]
-                              const newStart = lastTask
-                                ? lastTask.plannedStartWeek + lastTask.plannedDuration
-                                : project.plannedStartWeek
+                              const newStart = lastTask && lastTask.startDate
+                                ? toISODate(addWorkdays(parseISODate(lastTask.startDate), lastTask.plannedDuration))
+                                : (project.startDate ?? '2025-01-06')
                               addTask({
                                 projectId: project.id,
                                 name: phaseName,
                                 assignees: [],
-                                plannedStartWeek: newStart,
-                                plannedDuration: 2,
+                                startDate: newStart,
+                                plannedDuration: 10,
                                 percentComplete: 0,
                                 sortOrder: tasks.length,
                               })
