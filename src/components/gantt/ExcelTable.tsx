@@ -148,38 +148,59 @@ function Cell({ value, onCommit, onTabOut, onEnterOut, type = 'text', options, p
 // ─── date cell ────────────────────────────────────────────────────────────
 function DateCell({ value, onCommit }: { value: string; onCommit: (v: string) => void }) {
   const [editing, setEditing] = useState(false)
+  const containerRef = useRef<HTMLDivElement>(null)
   const inputRef = useRef<HTMLInputElement>(null)
 
   useEffect(() => {
-    if (editing) inputRef.current?.focus()
+    if (!editing) return
+    const input = inputRef.current
+    if (input) {
+      input.focus()
+      // Open the native calendar picker immediately
+      try { (input as HTMLInputElement & { showPicker?: () => void }).showPicker?.() } catch {}
+    }
+    // Close on outside click. Defer by one tick so the current click event
+    // doesn't immediately re-close the input.
+    const handler = (e: MouseEvent) => {
+      if (!containerRef.current?.contains(e.target as Node)) setEditing(false)
+    }
+    const t = setTimeout(() => document.addEventListener('mousedown', handler), 0)
+    return () => { clearTimeout(t); document.removeEventListener('mousedown', handler) }
   }, [editing])
 
   const display = value ? formatDateCZ(parseISODate(value)) : '—'
 
-  if (editing) {
-    return (
-      <input
-        ref={inputRef}
-        type="date"
-        value={value}
-        min="2026-01-01"
-        max="2027-12-31"
-        onChange={(e) => { if (e.target.value) onCommit(e.target.value) }}
-        onBlur={() => setEditing(false)}
-        style={{
-          background: '#0d0f1a', border: '1px solid #3b82f6', borderRadius: '3px',
-          color: '#e8eaf6', fontSize: '10px', padding: '1px 2px', width: '100%', outline: 'none',
-        }}
-      />
-    )
-  }
-
   return (
-    <div
-      onClick={() => setEditing(true)}
-      style={{ cursor: 'text', fontSize: '11px', color: '#9ca3af', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', width: '100%' }}
-    >
-      {display}
+    <div ref={containerRef} style={{ width: '100%' }}>
+      {editing ? (
+        <input
+          ref={inputRef}
+          type="date"
+          value={value}
+          min="2026-01-01"
+          max="2027-12-31"
+          // onChange commits immediately so the bar updates live
+          onChange={(e) => { if (e.target.value) onCommit(e.target.value) }}
+          onKeyDown={(e) => {
+            if (e.key === 'Enter' || e.key === 'Tab') { e.preventDefault(); setEditing(false) }
+            if (e.key === 'Escape') setEditing(false)
+          }}
+          // No onBlur — the native calendar popup blurs the input and would
+          // close editing before the user picks a date.
+          style={{
+            background: '#0d0f1a', border: '1px solid #3b82f6', borderRadius: '3px',
+            color: '#e8eaf6', fontSize: '10px', padding: '1px 2px', width: '100%',
+            outline: 'none', colorScheme: 'dark',
+          }}
+        />
+      ) : (
+        <div
+          onClick={() => setEditing(true)}
+          style={{ cursor: 'pointer', fontSize: '11px', color: '#9ca3af', whiteSpace: 'nowrap', textOverflow: 'ellipsis', overflow: 'hidden', width: '100%' }}
+        >
+          {display}
+        </div>
+      )}
     </div>
   )
 }
