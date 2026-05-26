@@ -5,7 +5,7 @@ import { AppNav } from '@/components/layout/AppNav'
 import { CommandPalette } from '@/components/shared/CommandPalette'
 
 export const metadata: Metadata = {
-  title: 'Project Portfolio Sconto 2025',
+  title: 'Project Portfolio',
   description: 'Správa projektového portfolia',
 }
 

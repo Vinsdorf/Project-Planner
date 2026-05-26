@@ -46,12 +46,15 @@ export function buildSlots(projects: Project[], tasks: ProjectTask[]): ScheduleS
       }
     } else {
       if (!project.startDate) continue
+      // Prefer actual dates when set — conflict detection should reflect reality
+      const effectiveStart = project.actualStartDate ?? project.startDate
+      const effectiveDuration = project.actualDuration ?? project.plannedDuration
       slots.push({
         id: `project-${project.id}`,
         name: project.name,
         assignees: project.assignees,
-        startDate: project.startDate,
-        endDate: toEndDate(project.startDate, project.plannedDuration),
+        startDate: effectiveStart,
+        endDate: toEndDate(effectiveStart, effectiveDuration),
         sourceType: 'project',
         sourceId: project.id,
       })

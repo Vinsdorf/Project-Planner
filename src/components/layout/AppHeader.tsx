@@ -71,7 +71,7 @@ export function AppHeader() {
             letterSpacing: '-0.3px',
           }}
         >
-          Project Portfolio Sconto 2025
+          Project Portfolio
         </h1>
         <SaveIndicator />
       </div>
