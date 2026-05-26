@@ -116,6 +116,6 @@ export function getWeekNumber(date: Date): number {
 }
 
 // Timeline constants
-export const TIMELINE_START = new Date(2025, 0, 1)  // Jan 1, 2025
+export const TIMELINE_START = new Date(2026, 0, 1)  // Jan 1, 2026
 export const TIMELINE_END = new Date(2027, 11, 31)  // Dec 31, 2027
-export const TIMELINE_DAYS = 1095  // approx 3 years
+export const TIMELINE_DAYS = 730  // 365 (2026) + 365 (2027)

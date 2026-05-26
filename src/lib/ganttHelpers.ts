@@ -5,17 +5,22 @@ export { isWeekend, isCzechHoliday }
 // Default zoom: 8px per day
 // Zoom levels: 4, 6, 8, 12, 20 px per day
 
+// Use UTC-based day arithmetic to avoid DST off-by-one errors.
+// CZ clocks shift by 1h in spring/autumn; using .getTime() directly
+// can give 154.958 days instead of 155 → Math.floor shifts bar 1 day early.
+function utcDay(date: Date): number {
+  return Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / 86400000
+}
+const TIMELINE_START_DAY = utcDay(TIMELINE_START)
+
 export function dateToPixel(date: Date, pxPerDay: number): number {
-  const msPerDay = 1000 * 60 * 60 * 24
-  const days = Math.floor((date.getTime() - TIMELINE_START.getTime()) / msPerDay)
+  const days = utcDay(date) - TIMELINE_START_DAY
   return Math.max(0, days) * pxPerDay
 }
 
 export function pixelToDate(px: number, pxPerDay: number): Date {
   const days = Math.round(px / pxPerDay)
-  const date = new Date(TIMELINE_START)
-  date.setDate(date.getDate() + days)
-  return date
+  return new Date(TIMELINE_START.getFullYear(), TIMELINE_START.getMonth(), TIMELINE_START.getDate() + days)
 }
 
 // Get bar positioning for a project/task
@@ -37,10 +42,10 @@ export function getBarPosition(
   if (md <= 0) {
     return { left, width: pxPerDay } // at least 1 day wide
   }
-  // endDate = start + (md - 1) workdays
+  // endDate = start + (md - 1) workdays (inclusive)
   const endDate = addWorkdays(startDate, md - 1)
-  const msPerDay = 1000 * 60 * 60 * 24
-  const calendarDays = Math.floor((endDate.getTime() - startDate.getTime()) / msPerDay) + 1
+  // Use UTC day arithmetic to avoid DST issues across spring/autumn boundary
+  const calendarDays = utcDay(endDate) - utcDay(startDate) + 1
   const width = Math.max(calendarDays * pxPerDay, pxPerDay)
   return { left, width }
 }

@@ -131,7 +131,7 @@ const TaskTable = forwardRef<HTMLDivElement, TaskTableProps>(
                               const lastTask = tasks[tasks.length - 1]
                               const newStart = lastTask && lastTask.startDate
                                 ? toISODate(addWorkdays(parseISODate(lastTask.startDate), lastTask.plannedDuration))
-                                : (project.startDate ?? '2025-01-06')
+                                : (project.startDate ?? '2026-01-05')
                               addTask({
                                 projectId: project.id,
                                 name: phaseName,

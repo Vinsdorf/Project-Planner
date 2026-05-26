@@ -162,7 +162,7 @@ function DateCell({ value, onCommit }: { value: string; onCommit: (v: string) =>
         ref={inputRef}
         type="date"
         value={value}
-        min="2025-01-01"
+        min="2026-01-01"
         max="2027-12-31"
         onChange={(e) => { if (e.target.value) onCommit(e.target.value) }}
         onBlur={() => setEditing(false)}
@@ -378,7 +378,7 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
       name: '', type: 'Projekt', team: TEAMS[0], assignees: [],
       phase: 'Idea', statusOverall: 'N/A', statusScope: 'N/A',
       statusTime: 'N/A', statusBudget: 'N/A', priority: 'Medium',
-      startDate: '2025-01-06', plannedDuration: 10, percentComplete: 0,
+      startDate: '2026-01-05', plannedDuration: 10, percentComplete: 0,
       sortOrder: newSortOrder,
     }
     addProject(p)
@@ -390,7 +390,7 @@ export function ExcelTable({ tableRef }: { tableRef: React.RefObject<HTMLDivElem
     const lastTask = projectTasks[projectTasks.length - 1]
     const newStart = lastTask && lastTask.startDate
       ? toISODate(addWorkdays(parseISODate(lastTask.startDate), lastTask.plannedDuration))
-      : '2025-01-06'
+      : '2026-01-05'
     addTask({
       projectId,
       name: '',

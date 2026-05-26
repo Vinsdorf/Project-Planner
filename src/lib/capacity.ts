@@ -32,7 +32,6 @@ export function buildSlots(projects: Project[], tasks: ProjectTask[]): ScheduleS
     const projectTasks = tasks.filter((t) => t.projectId === project.id)
 
     if (projectTasks.length > 0) {
-      // Project has tasks — use tasks for scheduling
       for (const task of projectTasks) {
         if (!task.startDate) continue
         slots.push({
@@ -46,7 +45,6 @@ export function buildSlots(projects: Project[], tasks: ProjectTask[]): ScheduleS
         })
       }
     } else {
-      // Project has no tasks — use project-level assignees
       if (!project.startDate) continue
       slots.push({
         id: `project-${project.id}`,
@@ -63,17 +61,12 @@ export function buildSlots(projects: Project[], tasks: ProjectTask[]): ScheduleS
   return slots
 }
 
-// Check if two date ranges overlap (inclusive on both ends)
-function dateRangesOverlap(
-  aStart: string,
-  aEnd: string,
-  bStart: string,
-  bEnd: string
-): boolean {
+// Inclusive ISO date string comparison: aStart <= bEnd && bStart <= aEnd
+function dateRangesOverlap(aStart: string, aEnd: string, bStart: string, bEnd: string): boolean {
   return aStart <= bEnd && bStart <= aEnd
 }
 
-// Get ISO week number from date string "YYYY-MM-DD"
+// ISO week number from date string "YYYY-MM-DD"
 function isoDateToWeek(dateStr: string): number {
   try {
     const [y, m, d] = dateStr.split('-').map(Number)
@@ -92,60 +85,56 @@ export function calculateConflicts(
 } {
   const slots = buildSlots(projects, tasks)
 
-  // Build assignee → week → slotIds mapping (using ISO week numbers for heatmap)
-  const assigneeWeekSlots = new Map<string, Map<number, string[]>>()
-
+  // Group slots by assignee
+  const assigneeSlots = new Map<string, ScheduleSlot[]>()
   for (const slot of slots) {
-    if (!slot.startDate || !slot.endDate) continue
-    // Enumerate weeks covered by this slot
-    const startWeek = isoDateToWeek(slot.startDate)
-    const endWeek = isoDateToWeek(slot.endDate)
-
     for (const assignee of slot.assignees) {
-      if (!assigneeWeekSlots.has(assignee)) {
-        assigneeWeekSlots.set(assignee, new Map())
-      }
-      const weekMap = assigneeWeekSlots.get(assignee)!
-      for (let w = startWeek; w <= Math.min(endWeek, 52); w++) {
-        const existing = weekMap.get(w) ?? []
-        weekMap.set(w, [...existing, slot.id])
-      }
+      if (!assigneeSlots.has(assignee)) assigneeSlots.set(assignee, [])
+      assigneeSlots.get(assignee)!.push(slot)
     }
   }
 
-  // Build slotConflicts: slotId → Set<weekNumber> where that slot has a conflict
-  const slotConflicts = new Map<string, Set<number>>()
-
-  for (const weekMap of assigneeWeekSlots.values()) {
-    for (const [week, slotIds] of weekMap.entries()) {
-      if (slotIds.length >= 2) {
-        for (const slotId of slotIds) {
-          if (!slotConflicts.has(slotId)) {
-            slotConflicts.set(slotId, new Set())
-          }
-          slotConflicts.get(slotId)!.add(week)
+  // Detect conflicts via actual date-range overlap (not week numbers).
+  // The old week-based approach caused false positives: two tasks in the same
+  // ISO week but on non-overlapping days were wrongly flagged as conflicting.
+  // It also broke across year boundaries (Dec week 52 → Jan week 1 reset).
+  const conflictingIds = new Set<string>()
+  for (const [, aSlots] of assigneeSlots) {
+    for (let i = 0; i < aSlots.length; i++) {
+      for (let j = i + 1; j < aSlots.length; j++) {
+        const a = aSlots[i], b = aSlots[j]
+        if (a.startDate && a.endDate && b.startDate && b.endDate &&
+            dateRangesOverlap(a.startDate, a.endDate, b.startDate, b.endDate)) {
+          conflictingIds.add(a.id)
+          conflictingIds.add(b.id)
         }
       }
     }
   }
 
-  // Build heatmapData: assigneeName → Map<week, slotNames[]>
-  const heatmapData = new Map<string, Map<number, string[]>>()
-
-  const slotById = new Map<string, ScheduleSlot>()
-  for (const slot of slots) {
-    slotById.set(slot.id, slot)
+  // Build slotConflicts (Map<string, Set<number>> kept for type compatibility;
+  // consumers only call .has() to check existence)
+  const slotConflicts = new Map<string, Set<number>>()
+  for (const id of conflictingIds) {
+    slotConflicts.set(id, new Set([1]))
   }
 
-  for (const [assignee, weekMap] of assigneeWeekSlots.entries()) {
-    const nameMap = new Map<number, string[]>()
-    for (const [week, slotIds] of weekMap.entries()) {
-      nameMap.set(
-        week,
-        slotIds.map((id) => slotById.get(id)?.name ?? id)
-      )
+  // Build heatmapData: assignee → ISO week → slot names (for CapacityHeatmap display)
+  const heatmapData = new Map<string, Map<number, string[]>>()
+  for (const [assignee, aSlots] of assigneeSlots) {
+    const weekMap = new Map<number, string[]>()
+    for (const slot of aSlots) {
+      if (!slot.startDate || !slot.endDate) continue
+      const sw = isoDateToWeek(slot.startDate)
+      const ew = isoDateToWeek(slot.endDate)
+      const lo = Math.min(sw, ew)
+      const hi = Math.max(sw, ew)
+      for (let w = lo; w <= Math.min(hi, 52); w++) {
+        const existing = weekMap.get(w) ?? []
+        weekMap.set(w, [...existing, slot.name])
+      }
     }
-    heatmapData.set(assignee, nameMap)
+    heatmapData.set(assignee, weekMap)
   }
 
   return { slotConflicts, heatmapData }
@@ -158,28 +147,19 @@ export function getHeatmapColor(projectCount: number): string {
   return 'rgba(239, 68, 68, 0.8)'
 }
 
-export function countConflicts(
-  projects: Project[],
-  tasks: ProjectTask[]
-): number {
+export function countConflicts(projects: Project[], tasks: ProjectTask[]): number {
   const { slotConflicts } = calculateConflicts(projects, tasks)
-  let count = 0
-  for (const weeks of slotConflicts.values()) {
-    count += weeks.size
-  }
-  return count
+  return slotConflicts.size
 }
 
-// Legacy function for backward compatibility — uses project-level only
+// Legacy function for backward compatibility — project-level only
 export function calculateConflictsLegacy(
   projects: Project[],
   resources: Resource[]
 ): Map<string, Map<number, string[]>> {
   const result = new Map<string, Map<number, string[]>>()
-
   for (const resource of resources) {
     const weekMap = new Map<number, string[]>()
-
     for (const project of projects) {
       if (!project.assignees.includes(resource.name)) continue
       if (!project.startDate) continue
@@ -193,9 +173,7 @@ export function calculateConflictsLegacy(
     }
     result.set(resource.name, weekMap)
   }
-
   return result
 }
 
-// Re-export workdaysBetween for convenience
 export { workdaysBetween }
